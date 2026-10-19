@@ -1916,7 +1916,7 @@ test.describe('Prime Work desktop smoke', () => {
     await expect(page.locator('.work-disclosure__rail')).toBeVisible()
     const workStatus = page.locator('.work-disclosure__status')
     await expect(workStatus).toHaveAttribute('role', 'status')
-    await expect(workStatus).toContainText('Working')
+    await expect(workStatus).toContainText('处理中')
     await expect(page.locator('.activity-line--reasoning')).toContainText('Reviewing the available release channels')
     await expect(page.locator('.thinking-dots > span')).toHaveCount(3)
     await expect(page.locator('.work-disclosure__button')).toHaveCount(0)
@@ -1954,7 +1954,7 @@ test.describe('Prime Work desktop smoke', () => {
     const runtimeArgs = JSON.parse(readFileSync(join(fixtureRoot, 'prime-runtime-args.json'), 'utf8')) as string[]
     expect(runtimeArgs).toContain(join(process.cwd(), 'assets', 'extensions', 'gooeypi-work-ask-user.ts'))
     const worked = page.locator('.work-disclosure__button')
-    await expect(worked).toContainText(/^Worked for /)
+    await expect(worked).toContainText(/用时 /)
     await expect(worked).toHaveAttribute('aria-expanded', 'false')
     await expect(page.locator('.activity-line--reasoning')).toHaveCount(0)
     await worked.click()

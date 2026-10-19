@@ -32,14 +32,38 @@ export function formatWorkedDuration(milliseconds: number): string {
   const totalSeconds = Math.max(0, Math.round(milliseconds / 1_000))
   const seconds = totalSeconds % 60
   const totalMinutes = Math.floor(totalSeconds / 60)
-  if (totalMinutes === 0) return `${seconds}s`
+  if (totalMinutes === 0) return `${seconds} 秒`
   const minutes = totalMinutes % 60
   const hours = Math.floor(totalMinutes / 60)
-  if (hours === 0) return `${minutes}m${String(seconds).padStart(2, '0')}s`
-  return `${hours}h${String(minutes).padStart(2, '0')}m${String(seconds).padStart(2, '0')}s`
+  if (hours === 0) return `${minutes} 分 ${String(seconds).padStart(2, '0')} 秒`
+  return `${hours} 小时 ${String(minutes).padStart(2, '0')} 分 ${String(seconds).padStart(2, '0')} 秒`
 }
 
 export type ToolKind = 'question' | 'terminal' | 'web' | 'git' | 'file' | 'mcp'
+
+const TOOL_KIND_PHRASE: Record<ToolKind, (count: number) => string> = {
+  file: (count) => `处理 ${count} 个文件`,
+  terminal: (count) => `运行 ${count} 条命令`,
+  web: (count) => `查阅 ${count} 次网页`,
+  git: (count) => `${count} 次 Git 操作`,
+  question: (count) => `询问你 ${count} 次`,
+  mcp: (count) => `调用 ${count} 次工具`,
+}
+
+/** One line for a finished turn: how many steps it took and what kind, e.g. 「做了 6 步 · 处理 3 个文件、运行 2 条命令」. */
+export function summarizeWork(parts: MessagePart[], showTools: boolean): string {
+  const counts = new Map<ToolKind, number>()
+  for (const part of parts) {
+    if (part.type !== 'toolCall') continue
+    const kind = classifyTool(part.name)
+    counts.set(kind, (counts.get(kind) ?? 0) + 1)
+  }
+  const steps = [...counts.values()].reduce((total, count) => total + count, 0)
+  if (!steps) return ''
+  if (!showTools) return `做了 ${steps} 步`
+  const detail = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([kind, count]) => TOOL_KIND_PHRASE[kind](count)).join('、')
+  return `做了 ${steps} 步 · ${detail}`
+}
 
 export function classifyTool(name: string): ToolKind {
   if (/ask[_\s.-]?user|ask\s+(?:a\s+)?question|ui\.select|request[_\s.-]?input/i.test(name)) return 'question'
@@ -81,7 +105,7 @@ function ReasoningPart({ part, streaming = false }: { part: Extract<MessagePart,
 
 export function ThinkingDots({ labelled = false }: { labelled?: boolean }) {
   return (
-    <span className="thinking-dots" role={labelled ? 'status' : undefined} aria-label={labelled ? 'Prime is thinking' : undefined} aria-hidden={labelled ? undefined : true}>
+    <span className="thinking-dots" role={labelled ? 'status' : undefined} aria-label={labelled ? '正在思考' : undefined} aria-hidden={labelled ? undefined : true}>
       <span /><span /><span />
     </span>
   )
@@ -247,24 +271,24 @@ export function WorkTimeline({ parts, showReasoning, showTools, streaming = fals
   })}</div>
 }
 
-function liveWorkStatus(parts: MessagePart[], showReasoning: boolean, showTools: boolean): 'Thinking' | 'Working' {
-  let status: 'Thinking' | 'Working' | undefined
+function liveWorkStatus(parts: MessagePart[], showReasoning: boolean, showTools: boolean): '思考中' | '处理中' {
+  let status: '思考中' | '处理中' | undefined
   for (let index = parts.length - 1; index >= 0; index -= 1) {
     const part = parts[index]
     const next = parts[index + 1]
-    if (part.type === 'toolCall' && (next?.type !== 'toolResult' || next.streaming)) return 'Working'
+    if (part.type === 'toolCall' && (next?.type !== 'toolResult' || next.streaming)) return '处理中'
     if (status || part.type === 'image') continue
-    if (part.type === 'thinking') status = showReasoning ? 'Thinking' : undefined
-    else if (showTools || part.type !== 'toolCall' && part.type !== 'toolResult') status = 'Working'
+    if (part.type === 'thinking') status = showReasoning ? '思考中' : undefined
+    else if (showTools || part.type !== 'toolCall' && part.type !== 'toolResult') status = '处理中'
   }
-  return status ?? 'Working'
+  return status ?? '处理中'
 }
 
 export function WorkDisclosure({ message, parts, showReasoning, showTools, running = message.streaming }: { message: TranscriptMessage; parts: MessagePart[]; showReasoning: boolean; showTools: boolean; running?: boolean }) {
   const [open, setOpen] = useState(false)
   if (running) {
     const status = liveWorkStatus(message.parts, showReasoning, showTools)
-    return <section className="work-disclosure is-running" aria-label="Agent work activity">
+    return <section className="work-disclosure is-running" aria-label="工作过程">
       <span className="work-disclosure__rail" aria-hidden="true" />
       <div className="work-disclosure__live">
         <div className="work-disclosure__status" role="status"><span>{status}</span><LiveElapsed since={message.startedAt ?? message.timestamp} /><ThinkingDots /></div>
@@ -275,10 +299,11 @@ export function WorkDisclosure({ message, parts, showReasoning, showTools, runni
   const startedAt = timestamp(message.startedAt ?? message.timestamp) ?? 0
   const completedAt = timestamp(message.completedAt) ?? startedAt
   const duration = formatWorkedDuration(Math.max(0, completedAt - startedAt))
+  const summary = summarizeWork(parts, showTools)
   return (
     <section className="work-disclosure">
       <button type="button" className="work-disclosure__button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-        {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}<span>Worked for {duration}</span>
+        {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}<span>{summary ? `${summary} · ` : ''}用时 {duration}</span>
       </button>
       {open ? <WorkTimeline parts={parts} showReasoning={showReasoning} showTools={showTools} /> : null}
     </section>

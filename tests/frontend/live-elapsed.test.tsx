@@ -31,10 +31,10 @@ describe('LiveElapsed', () => {
       root.render(<LiveElapsed since={Date.now() - 65_000} />)
       await Promise.resolve()
     })
-    expect(container.textContent).toBe('1m05s')
+    expect(container.textContent).toBe('1 分 05 秒')
 
     act(() => { vi.advanceTimersByTime(1_000) })
-    expect(container.textContent).toBe('1m06s')
+    expect(container.textContent).toBe('1 分 06 秒')
   })
 
   it('clears its interval when unmounted', async () => {

@@ -40,10 +40,10 @@ describe('transcript rendering', () => {
     expect(html).toContain('activity-line--reasoning')
     expect(html).toContain('work-disclosure__rail')
     expect(html).toContain('work-disclosure__status')
-    expect(html).toContain('role="status"><span>Thinking</span>')
+    expect(html).toContain('role="status"><span>思考中</span>')
     expect(html).toContain('Checking <strong>the workspace</strong> now.')
     expect(html).not.toContain('**the workspace**')
-    expect(html).not.toContain('Worked for')
+    expect(html).not.toContain('用时')
     expect(html).toContain('thinking-dots')
     expect(html.match(/thinking-dots[\s\S]*?<span><\/span><span><\/span><span><\/span>/)).not.toBeNull()
   })
@@ -61,10 +61,10 @@ describe('transcript rendering', () => {
 
     expect(html).toContain('activity-line--reasoning')
     expect(html.includes('activity-line--tool')).toBe(showTools)
-    expect(html).toContain('role="status"><span>Working</span>')
+    expect(html).toContain('role="status"><span>处理中</span>')
   })
 
-  it.each([[true, 'Working'], [false, 'Thinking']] as const)(
+  it.each([[true, '处理中'], [false, '思考中']] as const)(
     'uses visible activity when showTools=%s for a completed generic tool',
     (showTools, status) => {
       const html = render([{
@@ -86,12 +86,12 @@ describe('transcript rendering', () => {
       { type: 'tool_execution_start', toolCallId: 'tool-1', toolName: 'read_file' },
       { type: 'tool_execution_update', toolCallId: 'tool-1', toolName: 'read_file', partialResult: 'halfway' },
     ])
-    expect(render(updating, false, false)).toContain('role="status"><span>Working</span>')
+    expect(render(updating, false, false)).toContain('role="status"><span>处理中</span>')
 
     const finished = replayPrimeEvents(updating, [
       { type: 'tool_execution_end', toolCallId: 'tool-1', toolName: 'read_file', result: 'done' },
     ])
-    expect(render(finished, false, false)).toContain('role="status"><span>Thinking</span>')
+    expect(render(finished, false, false)).toContain('role="status"><span>思考中</span>')
   })
 
   it('keeps late results at their call site and follows newer reasoning or narrative', () => {
@@ -103,12 +103,12 @@ describe('transcript rendering', () => {
       { type: 'tool_execution_end', toolCallId: 'tool-1', toolName: 'read_file', result: 'done' },
     ])
     expect(reasoning[0].parts.map((part) => part.type)).toEqual(['thinking', 'toolCall', 'toolResult', 'thinking'])
-    expect(render(reasoning)).toContain('role="status"><span>Thinking</span>')
+    expect(render(reasoning)).toContain('role="status"><span>思考中</span>')
 
     const narrative = replayPrimeEvents(reasoning, [
       { type: 'message_update', assistantMessageEvent: { type: 'text_delta', delta: 'Final answer.' } },
     ])
-    expect(render(narrative, false, false)).toContain('role="status"><span>Working</span>')
+    expect(render(narrative, false, false)).toContain('role="status"><span>处理中</span>')
   })
 
   it('keeps external active work readable until the whole agent turn is done', () => {
@@ -131,8 +131,8 @@ describe('transcript rendering', () => {
     expect(html).toContain('src/App.tsx')
     expect(html).not.toContain('read complete')
     expect(html).toContain('aria-expanded="false"')
-    expect(html).toContain('Agent work activity')
-    expect(html).not.toContain('Worked for')
+    expect(html).toContain('工作过程')
+    expect(html).not.toContain('用时')
     expect(html).not.toContain('message-actions')
   })
 
@@ -150,7 +150,7 @@ describe('transcript rendering', () => {
       parts: [{ type: 'text', text: 'Continue externally' }],
     }], true)
 
-    expect(html).toContain('Worked for 1s')
+    expect(html).toContain('用时 1 秒')
     expect(html).not.toContain('Prior completed reasoning.')
     expect(html).toContain('transcript-active-placeholder')
     expect(html).toContain('Prime is working')
@@ -189,7 +189,7 @@ describe('transcript rendering', () => {
       parts: [{ type: 'thinking', text: 'This stays collapsed until requested.' }],
     }])
 
-    expect(html).toContain('Worked for 3s')
+    expect(html).toContain('用时 3 秒')
     expect(html).toContain('aria-expanded="false"')
     expect(html).not.toContain('This stays collapsed until requested.')
     expect(html).not.toContain('thinking-dots')
@@ -208,8 +208,8 @@ describe('transcript rendering', () => {
     ])
 
     expect(html.match(/class="message message--assistant"/g)).toHaveLength(1)
-    expect(html.match(/Worked for/g)).toHaveLength(1)
-    expect(html).toContain('Worked for 4s')
+    expect(html.match(/用时/g)).toHaveLength(1)
+    expect(html).toContain('用时 4 秒')
   })
 
 
@@ -300,7 +300,7 @@ describe('transcript rendering', () => {
       ],
     }])
 
-    expect(html).toContain('Worked for 1s')
+    expect(html).toContain('用时 1 秒')
     expect(html).toContain('The primary final report stays visible.')
     expect(html).toContain('Trailing lightweight reasoning.')
     expect(html).not.toContain('Earlier reasoning.')
@@ -403,7 +403,7 @@ describe('transcript rendering', () => {
         parts: [{ type: 'thinking', text: 'Still thinking.' }],
       }], true)
       expect(running).toContain('live-elapsed')
-      expect(running).toContain('1m05s')
+      expect(running).toContain('1 分 05 秒')
 
       const finishedStartedAt = now.getTime() - 66_000
       const finished = render([{
@@ -414,7 +414,7 @@ describe('transcript rendering', () => {
         completedAt: now.getTime() - 1_000,
         parts: [{ type: 'thinking', text: 'Done thinking.' }],
       }], false)
-      expect(finished).toContain('Worked for 1m05s')
+      expect(finished).toContain('用时 1 分 05 秒')
       expect(finished).not.toContain('live-elapsed')
     } finally {
       vi.useRealTimers()
