@@ -43,6 +43,7 @@ interface Services {
   importEnterpriseConnection?(): Promise<import('../../src/types/api').EnterpriseConnectionImportResult>
   restartEnterpriseConnection?(): Promise<void>
   enterpriseBridge?: AgentEnterpriseBridge
+  runAttention?: import('./enterprise/run-attention').RunAttentionService
   teamDevelopmentBridge?: TeamDevelopmentAgentBridge
   secretPrompts?: import('./secret-prompt').SecretPrompts
   actionConfirmations?: import('./action-confirmation').ActionConfirmations
@@ -341,6 +342,9 @@ export function registerIpc(services: Services, expectedRendererUrl: string): Ip
   handle('enterprise:apply-team-member-config-draft', (_event, teamId, agentId, revision) => services.enterprise.applyTeamMemberConfigDraft(requireString(teamId, 'teamId', { min: 1, max: 160 }), requireString(agentId, 'agentId', { min: 1, max: 160 }), requireInteger(revision, 'revision', 1, 1_000_000)))
   handle('enterprise:get-work-overview', () => services.enterprise.getWorkOverview())
   handle('enterprise:get-work-run-states', (_event, runIds) => services.enterprise.getWorkRunStates(runIds as string[]))
+  handle('enterprise:resolve-work-session', async (_event, sessionReference) => await services.runAttention?.resolveSession(requireString(sessionReference, 'sessionReference', { min: 1, max: 512 })) ?? null)
+  handle('enterprise:take-pending-work-open', () => services.runAttention?.takePendingOpen() ?? null)
+  handle('enterprise:poll-work-attention', () => { services.runAttention?.pollSoon() })
   handle('enterprise:get-work-run-details', (_event, runId) => services.enterprise.getWorkRunDetails(requireString(runId, 'runId', { min: 1, max: 128 })))
   handle('enterprise:cancel-work', (_event, runId) => services.enterprise.cancelWork(requireString(runId, 'runId', { min: 1, max: 128 })))
   handle('enterprise:get-approval-context', async (_event, approvalId) => approvalContextView(await services.enterprise.getApprovalContext(requireString(approvalId, 'approvalId', { min: 1, max: 128 }))))

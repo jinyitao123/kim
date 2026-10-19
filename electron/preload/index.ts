@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { ActionConfirmationEvent, AgentBrowserActivityEvent, AgentBrowserPointerEvent, AgentBrowserState, AppUpdateState, EnterpriseEnvironmentStatus, EnterpriseSession, OperationPromptEvent, SecretPromptEvent, PrimeEventEnvelope, PrimeWorkApi, ProviderAuthEvent, ScheduleChangeEvent, SessionChangeEvent, TerminalDataEvent, TerminalExitEvent } from '../../src/types/api'
+import type { ActionConfirmationEvent, AgentBrowserActivityEvent, AgentBrowserPointerEvent, AgentBrowserState, AppUpdateState, EnterpriseEnvironmentStatus, EnterpriseSession, EnterpriseWorkAttention, OperationPromptEvent, SecretPromptEvent, PrimeEventEnvelope, PrimeWorkApi, ProviderAuthEvent, ScheduleChangeEvent, SessionChangeEvent, TerminalDataEvent, TerminalExitEvent } from '../../src/types/api'
 
 function subscribe<T>(channel: string, callback: (payload: T) => void): () => void {
   if (typeof callback !== 'function') throw new TypeError('callback must be a function')
@@ -90,6 +90,11 @@ const api: PrimeWorkApi = {
     applyTeamMemberConfigDraft: (teamId, agentId, revision) => invoke('enterprise:apply-team-member-config-draft', teamId, agentId, revision),
     getWorkOverview: () => invoke('enterprise:get-work-overview'),
     getWorkRunStates: (runIds) => invoke('enterprise:get-work-run-states', runIds),
+    resolveWorkSession: (sessionReference) => invoke('enterprise:resolve-work-session', sessionReference),
+    takePendingWorkOpen: () => invoke('enterprise:take-pending-work-open'),
+    pollWorkAttention: () => invoke('enterprise:poll-work-attention'),
+    onWorkAttention: (callback) => subscribe<EnterpriseWorkAttention>('enterprise:work-attention', callback),
+    onOpenWorkSession: (callback) => subscribe<EnterpriseWorkAttention>('enterprise:open-work-session', callback),
     getWorkRunDetails: (runId) => invoke('enterprise:get-work-run-details', runId),
     cancelWork: (runId) => invoke('enterprise:cancel-work', runId),
     getApprovalContext: (approvalId) => invoke('enterprise:get-approval-context', approvalId),

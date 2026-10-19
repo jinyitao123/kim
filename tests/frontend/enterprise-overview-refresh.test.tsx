@@ -36,7 +36,7 @@ beforeEach(() => {
   let settings = { ...DEFAULT_SETTINGS, activeHarness: 'prime' as const, inspectorOpen: false }
   const bridge = {
     app: { getMeta: async () => meta, refreshHarnesses: async () => ({ meta, settings }), setTitleBarTheme: async () => true, onOpenSettings: noopSubscription },
-    enterprise: { getSession: async () => signedIn('alice'), onSessionChanged: (callback: typeof publish) => { publish = callback; return () => undefined }, getWorkOverview: read, onSecretPrompt: noopSubscription, answerSecretPrompt: async () => undefined, onOperationPrompt: noopSubscription, answerOperationPrompt: async () => undefined, onActionConfirmation: noopSubscription, answerActionConfirmation: async () => undefined },
+    enterprise: { getSession: async () => signedIn('alice'), onSessionChanged: (callback: typeof publish) => { publish = callback; return () => undefined }, getWorkOverview: read, onSecretPrompt: noopSubscription, answerSecretPrompt: async () => undefined, onOperationPrompt: noopSubscription, answerOperationPrompt: async () => undefined, onActionConfirmation: noopSubscription, answerActionConfirmation: async () => undefined, onWorkAttention: noopSubscription, onOpenWorkSession: noopSubscription, takePendingWorkOpen: async () => null },
     settings: { get: async () => settings, update: async (patch: Partial<typeof settings>) => { settings = { ...settings, ...patch }; return settings } },
     updates: { getState: async () => ({ phase: 'idle' }), onChanged: noopSubscription },
     projects: { list: async () => [] }, sessions: { list: async () => [], read: async () => [], onChanged: noopSubscription },

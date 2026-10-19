@@ -131,6 +131,21 @@ export interface EnterpriseWorkRunState {
   businessResult?: 'completed' | 'needs_input' | 'action_failed' | 'action_unknown'
 }
 
+/** Why a team run needs the employee; cancelled runs were stopped by the employee and stay quiet. */
+export type EnterpriseWorkAttentionKind = 'succeeded' | 'needs_input' | 'waiting' | 'failed' | 'action_check'
+
+export interface EnterpriseWorkSessionTarget {
+  runId: string
+  kind: EnterpriseWorkAttentionKind
+  /** Absent when the conversation that handed over the work is not on this computer. */
+  session?: { id: string; harness: HarnessId; filePath: string }
+}
+
+export interface EnterpriseWorkAttention extends EnterpriseWorkSessionTarget {
+  title: string
+  body: string
+}
+
 export interface EnterpriseWorkRunStates {
   runs: EnterpriseWorkRunState[]
   missing: string[]
@@ -1417,6 +1432,12 @@ export interface PrimeWorkApi {
     applyTeamMemberConfigDraft(teamId: string, agentId: string, revision: number): Promise<EnterpriseTeamMemberConfigDraft>
     getWorkOverview(): Promise<EnterpriseWorkOverview>
     getWorkRunStates(runIds: string[]): Promise<EnterpriseWorkRunStates>
+    /** The conversation on this computer that handed over the work, if it is still here. */
+    resolveWorkSession(sessionReference: string): Promise<EnterpriseWorkSessionTarget['session'] | null>
+    takePendingWorkOpen(): Promise<EnterpriseWorkAttention | null>
+    pollWorkAttention(): Promise<void>
+    onWorkAttention(callback: (attention: EnterpriseWorkAttention) => void): () => void
+    onOpenWorkSession(callback: (attention: EnterpriseWorkAttention) => void): () => void
     getWorkRunDetails(runId: string): Promise<EnterpriseWorkRunDetails>
     cancelWork(runId: string): Promise<EnterpriseWorkCancellationResult>
     getApprovalContext(approvalId: string): Promise<EnterpriseApprovalContextView>

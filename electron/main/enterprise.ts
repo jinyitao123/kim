@@ -1779,6 +1779,25 @@ export class EnterpriseService {
     return { runs: result.runs.map(({ runId, status, isCurrent, businessResult }) => ({ runId, status: status as import('../../src/types/api').EnterpriseWorkRunState['status'], isCurrent, ...(businessResult ? { businessResult } : {}) })), missing: result.missing }
   }
 
+  /** Recent team runs of the signed-in employee, for the background run watcher. */
+  async listRecentWorkRunIds(): Promise<string[]> {
+    const { session, generation } = await this.sessionSnapshot()
+    if (session.status !== 'signed-in') return []
+    const projectID = await this.workProjectID(generation)
+    const body = await this.weaveJSON(`/v1/runs?project_id=${encodeURIComponent(projectID)}&limit=50`, generation)
+    const items = Array.isArray(body) ? body : Array.isArray((body as { runs?: unknown })?.runs) ? (body as { runs: unknown[] }).runs : []
+    return items.flatMap((item) => {
+      const id = (item as { run_id?: unknown })?.run_id
+      return typeof id === 'string' && boundedIdentity(id, 128) ? [id] : []
+    })
+  }
+
+  async lookupOwnedWorkRuns(runIds: string[]): Promise<import('./enterprise/work-sources').WorkbenchRunLookupResponse> {
+    const { session, generation } = await this.sessionSnapshot()
+    if (session.status !== 'signed-in') return { runs: [], missing: [] }
+    return this.lookupWorkbenchRuns([...new Set(runIds.filter((id) => boundedIdentity(id, 128)))], generation)
+  }
+
   async getWorkRunDetails(runIdValue: string): Promise<import('../../src/types/api').EnterpriseWorkRunDetails> {
     const runId = boundedIdentity(runIdValue, 128)
     if (!runId) throw new Error('工作查询范围无效')

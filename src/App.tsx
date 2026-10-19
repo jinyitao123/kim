@@ -45,7 +45,7 @@ import { useStableCallback } from '@/hooks/useStableCallback'
 import { useToast } from '@/hooks/useToast'
 import { useWorkspaceActions } from '@/hooks/useWorkspaceActions'
 import { useWorkspaceRuntime } from '@/hooks/useWorkspaceRuntime'
-import { HARNESS_IDS, type CheckoutAction, type CheckoutCatalog, type EnterpriseApprovalContextView, type EnterpriseBusinessNotificationContextView, type EnterpriseHumanTask, type EnterpriseSession, type EnterpriseWorkContinuationContextView, type EnterpriseWorkItem, type EnterpriseWorkOverview, type GitStatus, type HarnessId, type NativeHeartbeatRecord, type PrimeModelDescriptor, type PrimeProviderDescriptor, type ProjectRecord, type AutomationScheduleRecord, type QueuedPrompt, type ScheduleTiming, type SessionRecord, type TerminalSelectionContext, type TranscriptMessage, type VoiceTaskStarted, type WorkspaceMaterialReference, type WorkspaceView } from '@/types/api'
+import { HARNESS_IDS, type CheckoutAction, type CheckoutCatalog, type EnterpriseApprovalContextView, type EnterpriseBusinessNotificationContextView, type EnterpriseHumanTask, type EnterpriseSession, type EnterpriseWorkAttention, type EnterpriseWorkContinuationContextView, type EnterpriseWorkItem, type EnterpriseWorkOverview, type GitStatus, type HarnessId, type NativeHeartbeatRecord, type PrimeModelDescriptor, type PrimeProviderDescriptor, type ProjectRecord, type AutomationScheduleRecord, type QueuedPrompt, type ScheduleTiming, type SessionRecord, type TerminalSelectionContext, type TranscriptMessage, type VoiceTaskStarted, type WorkspaceMaterialReference, type WorkspaceView } from '@/types/api'
 
 const Transcript = lazy(() => import('@/components/Transcript').then((module) => ({ default: module.Transcript })))
 const Inspector = lazy(() => import('@/components/Inspector').then((module) => ({ default: module.Inspector })))
@@ -703,12 +703,55 @@ export default function App() {
       item.returnTarget ? `修改完成后返回位置：${item.returnTarget}` : '', item.reviewScope ? `复核范围：${item.reviewScope}` : '',
       '先理解退回事项、最新退回原因和原提交材料，和我一起完成修改。只有员工明确要求递交修订材料时，才调用退回修订工具；该工具固定本轮正文和员工指定附件，再通过 Forge 受控修订能力递交。只有 resumed 表示原审批已进入下一轮；prepared 和 resume_unknown 都不能声称成功。unavailable、upload_unknown 或 rejected 时说明具体阻塞。结果未知时只查询同一回执，不重新读取文件或重提。绝不调用原生审批重提或其他审批状态接口。',
     ].filter(Boolean).join('\n')
-    const openedNewSession = newSession()
-    if (openedNewSession && teamContext) {
+    // Team results continue in the conversation that handed the work over when
+    // it is still on this computer; otherwise a new conversation is linked.
+    const originalSession = teamContext && item.sessionReference && enterpriseBridge
+      ? await enterpriseBridge.resolveWorkSession(item.sessionReference).catch(() => null)
+      : null
+    const original = originalSession ? sessions.find((candidate) => candidate.id === originalSession.id && candidate.harness === originalSession.harness && !candidate.archived) : undefined
+    let opened: boolean
+    if (original) {
+      await selectSession(original)
+      opened = workspace.workspaceRef.current.session?.id === original.id
+    } else opened = newSession()
+    if (!opened) {
+      setToast('未能打开原工作对话，请从「我的工作」重新打开')
+      return
+    }
+    if (teamContext) {
       setTeamActionReceipt({ generation: workspace.workspaceRef.current.generation, outcomes: teamContext.actionOutcomes })
     }
     workspace.queuePrompt(details, 'queue', undefined, undefined, returnedApprovalContextHandle, workContinuationContextHandle)
-  }, [enterpriseBridge, newSession, setToast, workspace])
+  }, [enterpriseBridge, newSession, selectSession, sessions, setToast, workspace])
+  const openWorkAttention = useStableCallback(async (attention: EnterpriseWorkAttention) => {
+    const target = attention.session
+      ? sessions.find((candidate) => candidate.id === attention.session!.id && candidate.harness === attention.session!.harness && !candidate.archived)
+      : undefined
+    if (!target) {
+      navigate('activity')
+      return
+    }
+    await selectSession(target)
+    settingsState.selectInspectorTab('summary')
+    if (!inspectorVisible) toggleInspector()
+  })
+  useEffect(() => {
+    if (!enterpriseBridge) return
+    const stopAttention = enterpriseBridge.onWorkAttention((attention) => {
+      refreshWorkOverview()
+      setToast(`${attention.title}：${attention.body}`)
+    })
+    const stopOpen = enterpriseBridge.onOpenWorkSession((attention) => {
+      void enterpriseBridge.takePendingWorkOpen().catch(() => null)
+      void openWorkAttention(attention)
+    })
+    return () => { stopAttention(); stopOpen() }
+  }, [enterpriseBridge, openWorkAttention, refreshWorkOverview, setToast])
+  useEffect(() => {
+    // A notification clicked while the window was closed is opened once the sessions are loaded.
+    if (!enterpriseBridge || !workspaceInitialized) return
+    void enterpriseBridge.takePendingWorkOpen().then((pending) => { if (pending) void openWorkAttention(pending) }).catch(() => undefined)
+  }, [enterpriseBridge, openWorkAttention, workspaceInitialized])
   const openTerminalLink = useCallback((url: string, external: boolean) => {
     if (external) {
       openExternal(url)

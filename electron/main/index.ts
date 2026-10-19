@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, Menu, nativeTheme, protocol, session, shell, webContents } from 'electron'
+import { app, BrowserWindow, dialog, Menu, nativeTheme, Notification, protocol, session, shell, webContents } from 'electron'
 import type { BrowserWindowConstructorOptions, Input, WebContents } from 'electron'
 import { basename, extname, isAbsolute, join, relative, resolve, win32 as win32Path } from 'node:path'
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
@@ -69,6 +69,7 @@ let agentBrowser: AgentBrowserService | null = null
 let agentBrowserBridge: AgentBrowserBridge | null = null
 let agentCollaborationBridge: AgentCollaborationBridge | null = null
 let agentEnterpriseBridge: AgentEnterpriseBridge | null = null
+let runAttention: import('./enterprise/run-attention').RunAttentionService | null = null
 let teamDevelopmentBridge: TeamDevelopmentAgentBridge | null = null
 let backgroundMode: MacBackgroundController | null = null
 let shutdownStarted = false
@@ -956,6 +957,38 @@ async function bootstrap(): Promise<void> {
     const renderer = mainWindow?.webContents
     return renderer && !renderer.isDestroyed() && isTrustedRendererUrl(renderer.getURL(), trustedRendererUrl) && isTrustedRendererUrl(renderer.mainFrame.url, trustedRendererUrl) ? renderer : undefined
   }
+  // Team run results return to the conversation that handed the work over.
+  const { RunAttentionService } = await import('./enterprise/run-attention')
+  const liveNotifications = new Set<Notification>()
+  const runAttentionService = new RunAttentionService({
+    stateDirectory: join(userDataPath, 'run-attention'),
+    listRecentRunIds: () => enterprise.listRecentWorkRunIds(),
+    lookupRuns: (runIds) => enterprise.lookupOwnedWorkRuns(runIds),
+    listSessions: async () => (await Promise.all(HARNESS_IDS.map((harness) => sessionServices[harness].list(undefined, true)))).flat(),
+    sendToRenderer: (channel, target) => {
+      const renderer = secretPromptRenderer()
+      if (!renderer) return false
+      renderer.send(channel, target)
+      return true
+    },
+    isWindowFocused: () => Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && mainWindow.isFocused()),
+    revealWindow: () => new Promise<void>((done) => {
+      if (backgroundMode) { backgroundMode.open(); void ensureWindow().then(() => done(), () => done()) }
+      else requestWindow('activation', () => done())
+    }),
+    showSystemNotification: ({ title, body, onClick }) => {
+      if (keepTestWindowsHidden || !Notification.isSupported()) return
+      // Held until dismissed so a collected notification cannot lose its click handler.
+      const notification = new Notification({ title, body })
+      liveNotifications.add(notification)
+      const release = () => liveNotifications.delete(notification)
+      notification.on('click', () => { release(); onClick() })
+      notification.on('close', release)
+      notification.show()
+    },
+  })
+  runAttention = runAttentionService
+  runAttentionService.setAccount(enterpriseAccountScope)
   const confirmationWindows = new WeakSet<Electron.WebContents>()
   const actionConfirmations = new ActionConfirmations((request) => {
     const renderer = secretPromptRenderer()
@@ -1244,6 +1277,7 @@ async function bootstrap(): Promise<void> {
       const nextScope = changedSession.status === 'signed-in' ? enterprise.accountKeyForSession(changedSession) : undefined
       await setAccountScope(nextScope, phase === 'sign-in-start', () => enterprise.isSessionGenerationCurrent(generation))
       if (!enterprise.isSessionGenerationCurrent(generation)) return
+      runAttention?.setAccount(nextScope)
       const renderer = mainWindow?.webContents
       if (renderer && !renderer.isDestroyed()
         && isTrustedRendererUrl(renderer.getURL(), trustedRendererUrl)
@@ -1289,6 +1323,7 @@ async function bootstrap(): Promise<void> {
     meta, refreshHarnesses, projects, checkouts, sessions, agents, terminals, git, plugins, providers, settings, updates, enterprise, cuaDriver, heartbeats, schedules, browser: browserService, voice, pets,
     popupApplicationMenu, setTitleBarTheme, ...connectionImport,
     enterpriseBridge,
+    runAttention: runAttentionService,
     teamDevelopmentBridge: developmentBridge,
     secretPrompts,
     actionConfirmations,
@@ -1445,6 +1480,7 @@ app.on('before-quit', (event) => {
   registration?.dispose()
   backgroundMode?.dispose()
   updateService?.dispose()
+  runAttention?.stop()
   agents?.beginShutdown()
   piAgents?.beginShutdown()
   loomAgents?.beginShutdown()
