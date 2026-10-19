@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { LoaderCircle } from 'lucide-react'
 import type { GitStatus, HarnessId, TranscriptMessage } from '@/types/api'
 import { ChangesCard } from './ChangesCard'
@@ -58,6 +58,8 @@ interface TranscriptProps {
   queuedMessageCount?: number
   onOpenSessionReference?(sessionId: string, harness: HarnessId): void
   onShowTeamSummary?(): void
+  /** Rendered after the last message, e.g. team results returned to this conversation. */
+  footer?: ReactNode
 }
 
 
@@ -86,7 +88,7 @@ function ActiveAssistantMessage({ message, harness, showReasoning, showTools }: 
 
 
 
-export function Transcript({ messages, git, harness = 'prime', personalWorkspace = false, loading, active = false, showReasoning = true, showTools = true, onOpenChanges, onSuggestion, onOpenMaterials, onChooseWorkspace, suggestionsDisabled, showPinnedChanges = true, bottomDockHasChanges = false, queuedMessageCount = 0, onOpenSessionReference, onShowTeamSummary }: TranscriptProps) {
+export function Transcript({ messages, git, harness = 'prime', personalWorkspace = false, loading, active = false, showReasoning = true, showTools = true, onOpenChanges, onSuggestion, onOpenMaterials, onChooseWorkspace, suggestionsDisabled, showPinnedChanges = true, bottomDockHasChanges = false, queuedMessageCount = 0, onOpenSessionReference, onShowTeamSummary, footer }: TranscriptProps) {
   const groupedMessages = useMemo(() => coalesceAssistantTurns(projectMaterialDisplayMessages(messages)), [messages])
   const { announcement, hiddenCount, scrollRef, showEarlier, updatePinnedState, visibleMessages } = useTranscriptScroll(groupedMessages, harness)
   const scopedMessages = useMemo(() => visibleMessages.map(enterpriseScopeProjection), [visibleMessages])
@@ -103,25 +105,24 @@ export function Transcript({ messages, git, harness = 'prime', personalWorkspace
     <div ref={scrollRef} className={transcriptClasses} aria-busy={loading} onScroll={updatePinnedState}>
       <div className="sr-only" role="status" aria-live="polite">{announcement}</div>
       <div className="transcript__inner">
-        {loading ? <div className="transcript-loading"><LoaderCircle className="spin" size={16} /> Loading session…</div> : null}
+        {loading ? <div className="transcript-loading"><LoaderCircle className="spin" size={16} /> 正在打开对话…</div> : null}
         {!loading && messages.length === 0 ? <div className="session-welcome">
           <AssistantMark harness={harness} size={34} />
-          <h1>{personalWorkspace ? '开始一项工作' : 'What should we work on?'}</h1>
-          <p>{personalWorkspace ? '说说你想完成什么，也可以直接添加文件或打开网页。' : `${HARNESS_SHORT_NAMES[harness]} can inspect this project, edit files, run tools, and keep working across sessions.`}</p>
+          <h1>今天想做点什么？</h1>
           <div className="prompt-suggestions">{personalWorkspace ? <>
             <button type="button" disabled={suggestionsDisabled} onClick={() => onSuggestion('请帮我整理这些材料')}>整理材料</button>
-            <button type="button" disabled={suggestionsDisabled} onClick={() => onSuggestion('请帮我完成这件事的后续工作')}>完成后续</button>
+            <button type="button" disabled={suggestionsDisabled} onClick={() => onSuggestion('看看有哪个团队能接手这件事')}>交给团队</button>
             <button type="button" disabled={suggestionsDisabled} onClick={() => onSuggestion('看看我现在有哪些需要处理的工作')}>查看待办</button>
             {onOpenMaterials ? <button type="button" onClick={onOpenMaterials}>打开材料文件夹</button> : null}
-            {onChooseWorkspace ? <button type="button" onClick={onChooseWorkspace}>选择工作空间文件夹</button> : null}
+            {onChooseWorkspace ? <button type="button" onClick={onChooseWorkspace}>选择文件夹</button> : null}
           </> : <>
-            <button type="button" disabled={suggestionsDisabled} onClick={() => onSuggestion('Summarize this project')}>Summarize this project</button>
-            <button type="button" disabled={suggestionsDisabled} onClick={() => onSuggestion('Find a useful next task')}>Find a useful next task</button>
-            <button type="button" disabled={suggestionsDisabled} onClick={() => onSuggestion('Run the test suite')}>Run the test suite</button>
+            <button type="button" disabled={suggestionsDisabled} onClick={() => onSuggestion('总结一下这个项目')}>总结这个项目</button>
+            <button type="button" disabled={suggestionsDisabled} onClick={() => onSuggestion('找一件值得做的下一步')}>找下一步</button>
+            <button type="button" disabled={suggestionsDisabled} onClick={() => onSuggestion('运行测试')}>运行测试</button>
           </>}</div>
         </div> : null}
-        {hiddenCount > 0 ? <button type="button" className="transcript__show-earlier" onClick={showEarlier}>Show {Math.min(250, hiddenCount)} earlier messages</button> : null}
-        {scopedMessages.map(({ message, scopes }) => <ErrorBoundary key={message.id} fallback={<div className="message message--render-failure" role="note">This message could not be displayed.</div>}>
+        {hiddenCount > 0 ? <button type="button" className="transcript__show-earlier" onClick={showEarlier}>显示更早的 {Math.min(250, hiddenCount)} 条消息</button> : null}
+        {scopedMessages.map(({ message, scopes }) => <ErrorBoundary key={message.id} fallback={<div className="message message--render-failure" role="note">这条消息无法显示。</div>}>
           {message.kind === 'steer-read-marker' ? <SteerReadMarker message={message} />
             : message.role === 'user' ? <UserMessage message={message} onOpenSessionReference={onOpenSessionReference} />
             : message.role === 'assistant' ? message.streaming || message.id === activeAssistantId
@@ -133,8 +134,9 @@ export function Transcript({ messages, git, harness = 'prime', personalWorkspace
             : <div className={`message message--${message.role}`}>{message.parts.map((part, partIndex) => part.type === 'text' ? <span key={partIndex}>{part.text}</span> : null)}</div>}
           {scopes.length && onShowTeamSummary ? <button type="button" className="enterprise-summary-link" onClick={onShowTeamSummary}>查看团队状态<span aria-hidden="true">↗</span></button> : null}
         </ErrorBoundary>)}
+        {footer}
         {active && !activeAssistantId ? <article className="message message--assistant transcript-active-placeholder" aria-live="polite">
-          <div className="assistant-mark"><AssistantMark harness={harness} /></div><div className="streaming-state"><ThinkingDots /> {HARNESS_SHORT_NAMES[harness]} is working</div>
+          <div className="assistant-mark"><AssistantMark harness={harness} /></div><div className="streaming-state"><ThinkingDots /> {HARNESS_SHORT_NAMES[harness]} 正在处理</div>
         </article> : null}
         <div />
       </div>

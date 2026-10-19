@@ -3,12 +3,12 @@ import { Modal } from './ui'
 export function NoHarnessPrompt({ onClose, onOpenHarnessSettings }: { onClose(): void; onOpenHarnessSettings(): void }) {
   return (
     <Modal
-      title="No Pi family harness detected"
+      title="没有检测到可用的内核"
       onClose={onClose}
-      footer={<button type="button" className="button button--primary" onClick={onOpenHarnessSettings}>Take me there</button>}
+      footer={<button type="button" className="button button--primary" onClick={onOpenHarnessSettings}>去设置</button>}
     >
-      <p>Kim couldn’t find Pi or Prime Agent. Install one to get started.</p>
-      <p>If you believe this is a mistake, or know where your Pi family harness is installed, configure its executable path in Harness settings. You can also refresh detection there after installing a harness.</p>
+      <p>Kim 没有找到 Pi、Prime Agent 或 Loom，安装其中一个即可开始。</p>
+      <p>如果已经安装，可以在「设置 · 运行环境」里填写可执行文件路径，或安装后重新检测。</p>
     </Modal>
   )
 }

@@ -28,7 +28,7 @@ describe('AppearanceSettings', () => {
     act(() => root.render(<AppearanceSettings settings={DEFAULT_SETTINGS} onUpdate={update} />))
 
     const options = [...container.querySelectorAll<HTMLButtonElement>('[role="radio"]')]
-    expect(options.map((option) => option.textContent)).toEqual(['Smaller', 'Default', 'Larger'])
+    expect(options.map((option) => option.textContent)).toEqual(['较小', '默认', '较大'])
     expect(options.map((option) => option.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false'])
 
     act(() => options[2].click())

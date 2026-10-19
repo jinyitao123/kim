@@ -17,11 +17,11 @@ const viewTitles: Record<Exclude<WorkspaceView, 'session'>, MessageKey> = {
 }
 
 const windowsMenus: ReadonlyArray<{ name: ApplicationMenuName; label: string }> = [
-  { name: 'file', label: 'File' },
-  { name: 'edit', label: 'Edit' },
-  { name: 'view', label: 'View' },
-  { name: 'window', label: 'Window' },
-  { name: 'help', label: 'Help' },
+  { name: 'file', label: '文件' },
+  { name: 'edit', label: '编辑' },
+  { name: 'view', label: '视图' },
+  { name: 'window', label: '窗口' },
+  { name: 'help', label: '帮助' },
 ]
 
 function openApplicationMenu(menu: ApplicationMenuName, event: MouseEvent<HTMLButtonElement>): void {
@@ -59,11 +59,11 @@ export function TitleToolbar({ project, gitBranch, view, productName = 'Prime Wo
   return (
     <header className="title-toolbar drag-region">
       {!sidebarOpen && platform === 'darwin' ? <div className="traffic-light-clearance traffic-light-clearance--toolbar" aria-hidden="true" /> : null}
-      {platform === 'win32' ? <nav className="windows-app-menu" aria-label="Application menu">
+      {platform === 'win32' ? <nav className="windows-app-menu" aria-label="应用菜单">
         {windowsMenus.map(({ name, label }) => <button key={name} type="button" className="windows-app-menu__button" onClick={(event) => openApplicationMenu(name, event)}>{label}</button>)}
       </nav> : null}
       <div className="title-toolbar__nav no-drag">
-        {!sidebarOpen ? <IconButton label={`Show sidebar (${sidebarShortcut})`} onClick={onToggleSidebar}><PanelLeft size={16} /></IconButton> : null}
+        {!sidebarOpen ? <IconButton label={`展开侧栏 (${sidebarShortcut})`} onClick={onToggleSidebar}><PanelLeft size={16} /></IconButton> : null}
       </div>
       <div className="title-toolbar__identity">
         <strong>{project?.name ?? (view === 'session' ? productName : t(viewTitles[view]))}</strong>
@@ -73,11 +73,11 @@ export function TitleToolbar({ project, gitBranch, view, productName = 'Prime Wo
         {view === 'session' && project && project.purpose !== 'personal' && onRunProjectScript && onStopProjectScript && onSaveProjectScripts
           ? <ProjectRunControl project={project} activeKind={activeProjectScriptKind} onRun={onRunProjectScript} onStop={onStopProjectScript} onSave={onSaveProjectScripts} />
           : null}
-        {view === 'session' && onToggleVoice ? <IconButton className={voiceOpen ? 'is-active voice-toggle--active' : ''} label={voiceOpen ? 'Close realtime voice' : 'Open realtime voice'} onClick={onToggleVoice}><AudioWaveform size={17} /></IconButton> : null}
-        {view === 'session' && project?.purpose !== 'personal' ? <IconButton className={terminalOpen ? 'is-active' : ''} label={`Toggle terminal (${terminalShortcut})`} onClick={onToggleTerminal}><Terminal size={17} /></IconButton> : null}
-        {view === 'session' ? <IconButton label={`Open browser (${browserShortcut})`} onClick={onOpenBrowser}><BrowserGlobe size={18} /></IconButton> : null}
-        {view === 'session' ? <IconButton className={inspectorOpen ? 'is-active' : ''} label="Toggle inspector" onClick={onToggleInspector}><PanelRight size={16} /></IconButton> : null}
-        {view !== 'session' && sidebarOpen ? <IconButton label={`Hide sidebar (${sidebarShortcut})`} onClick={onToggleSidebar}><PanelLeft size={16} /></IconButton> : null}
+        {view === 'session' && onToggleVoice ? <IconButton className={voiceOpen ? 'is-active voice-toggle--active' : ''} label={voiceOpen ? '关闭实时语音' : '打开实时语音'} onClick={onToggleVoice}><AudioWaveform size={17} /></IconButton> : null}
+        {view === 'session' && project?.purpose !== 'personal' ? <IconButton className={terminalOpen ? 'is-active' : ''} label={`终端 (${terminalShortcut})`} onClick={onToggleTerminal}><Terminal size={17} /></IconButton> : null}
+        {view === 'session' ? <IconButton label={`浏览器 (${browserShortcut})`} onClick={onOpenBrowser}><BrowserGlobe size={18} /></IconButton> : null}
+        {view === 'session' ? <IconButton className={inspectorOpen ? 'is-active' : ''} label="右侧面板" onClick={onToggleInspector}><PanelRight size={16} /></IconButton> : null}
+        {view !== 'session' && sidebarOpen ? <IconButton label={`收起侧栏 (${sidebarShortcut})`} onClick={onToggleSidebar}><PanelLeft size={16} /></IconButton> : null}
       </div>
     </header>
   )

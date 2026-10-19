@@ -14,10 +14,10 @@ createRoot(root).render(
       onCatch={saveComposerDraftFromDom}
       fallback={(
         <div className="empty-state app-error-fallback" role="alert">
-          <h2>Kim hit an unexpected error</h2>
-          <p>Reload to continue. Any message you were typing is preserved.</p>
+          <h2>Kim 遇到了意外错误</h2>
+          <p>重新加载即可继续，正在输入的内容会保留。</p>
           <div className="empty-state__action">
-            <button type="button" className="button button--primary" onClick={() => window.location.reload()}>Reload Kim</button>
+            <button type="button" className="button button--primary" onClick={() => window.location.reload()}>重新加载 Kim</button>
           </div>
         </div>
       )}

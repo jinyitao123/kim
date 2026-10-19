@@ -144,7 +144,7 @@ describe('Composer image ingestion', () => {
 
     expect(container.querySelector('.composer-attachment')?.textContent).toContain('pasted.png')
     await act(async () => {
-      ;(container.querySelector('button[aria-label="Send message"]') as HTMLButtonElement).click()
+      ;(container.querySelector('button[aria-label="发送"]') as HTMLButtonElement).click()
       await Promise.resolve()
     })
 
@@ -161,9 +161,9 @@ describe('Composer image ingestion', () => {
     expect(container.querySelector('[role="alert"]')).toBeNull()
     expect(container.querySelector('.composer-attachment')?.textContent).toContain('pasted.png')
     await act(async () => {
-      ;(container.querySelector('button[aria-label="Send message"]') as HTMLButtonElement).click()
+      ;(container.querySelector('button[aria-label="发送"]') as HTMLButtonElement).click()
     })
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain('does not accept images')
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('不支持图片')
     expect(onSend).not.toHaveBeenCalled()
   })
 
@@ -175,7 +175,7 @@ describe('Composer image ingestion', () => {
 
     await act(async () => { await Promise.resolve() })
     expect((container.querySelector('textarea') as HTMLTextAreaElement).value).toBe('clipboard note')
-    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')?.disabled).toBe(true)
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="发送"]')?.disabled).toBe(true)
     expect(onSend).not.toHaveBeenCalled()
 
     await act(async () => {
@@ -184,7 +184,7 @@ describe('Composer image ingestion', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')?.disabled).toBe(false)
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="发送"]')?.disabled).toBe(false)
   })
 
   it('reports an older delayed read failure after a newer batch succeeds', async () => {
@@ -249,7 +249,7 @@ describe('Composer image ingestion', () => {
     await pasteFiles([pastedPng()], 'Keep this draft')
     const textarea = container.querySelector('textarea') as HTMLTextAreaElement
     await act(async () => {
-      ;(container.querySelector('button[aria-label="Send message"]') as HTMLButtonElement).click()
+      ;(container.querySelector('button[aria-label="发送"]') as HTMLButtonElement).click()
       await Promise.resolve()
     })
 
@@ -264,7 +264,7 @@ describe('Composer image ingestion', () => {
     const onSend = renderComposer(vi.fn(() => new Promise<void>((_resolve, reject) => { rejectSend = reject })))
     await pickFiles([pngFile('submitted.png')])
 
-    act(() => { (container.querySelector('button[aria-label="Send message"]') as HTMLButtonElement).click() })
+    act(() => { (container.querySelector('button[aria-label="发送"]') as HTMLButtonElement).click() })
     expect(onSend).toHaveBeenCalledOnce()
     await pickFiles([pngFile('new-draft.png')])
     await act(async () => {
@@ -285,7 +285,7 @@ describe('Composer image ingestion', () => {
     renderComposer(vi.fn(() => new Promise<void>((_resolve, reject) => { rejectSend = reject })))
     await pickFiles([pngFile('submitted-1.png'), pngFile('submitted-2.png')])
 
-    act(() => { (container.querySelector('button[aria-label="Send message"]') as HTMLButtonElement).click() })
+    act(() => { (container.querySelector('button[aria-label="发送"]') as HTMLButtonElement).click() })
     await pickFiles(Array.from({ length: 7 }, (_, index) => pngFile(`new-${index + 1}.png`)))
     await act(async () => {
       rejectSend(new Error('rejected'))
@@ -296,8 +296,8 @@ describe('Composer image ingestion', () => {
     expect(container.querySelectorAll('.composer-attachment')).toHaveLength(8)
     expect(container.textContent).toContain('submitted-1.png')
     expect(container.textContent).not.toContain('submitted-2.png')
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain('1 attachment could not be restored because the attachment limits are full')
-    expect(container.querySelector('[role="status"]')?.textContent).toContain('8 files attached')
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('有 1 个附件没有恢复')
+    expect(container.querySelector('[role="status"]')?.textContent).toContain('已添加 8 个文件')
   })
 
   it('accounts for newly attached bytes when restoring a failed send', async () => {
@@ -305,7 +305,7 @@ describe('Composer image ingestion', () => {
     renderComposer(vi.fn(() => new Promise<void>((_resolve, reject) => { rejectSend = reject })))
     await pickFiles([sizedPng('submitted-large.png', 700_000)])
 
-    act(() => { (container.querySelector('button[aria-label="Send message"]') as HTMLButtonElement).click() })
+    act(() => { (container.querySelector('button[aria-label="发送"]') as HTMLButtonElement).click() })
     await pickFiles([sizedPng('new-large.png', 700_000)])
     await act(async () => {
       rejectSend(new Error('rejected'))
@@ -316,18 +316,18 @@ describe('Composer image ingestion', () => {
     expect(container.querySelectorAll('.composer-attachment')).toHaveLength(1)
     expect(container.textContent).toContain('new-large.png')
     expect(container.textContent).not.toContain('submitted-large.png')
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain('1 attachment could not be restored because the attachment limits are full')
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('有 1 个附件没有恢复')
   })
 
   it('opens a general file picker from the add menu and attaches its selection', async () => {
     renderComposer()
-    const input = container.querySelector<HTMLInputElement>('input[aria-label="Choose files to attach"]')
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="选择要添加的文件"]')
     const click = vi.spyOn(input as HTMLInputElement, 'click')
 
-    act(() => (container.querySelector('button[aria-label="Add context"]') as HTMLButtonElement).click())
-    expect(container.querySelector('[role="listbox"]')?.textContent).toContain('Add files')
-    expect(container.querySelector('[role="listbox"]')?.textContent).toContain('Mention a session or skill')
-    act(() => (Array.from(container.querySelectorAll<HTMLButtonElement>('.composer-menu button')).find((button) => button.textContent?.includes('Add files')) as HTMLButtonElement).click())
+    act(() => (container.querySelector('button[aria-label="添加上下文"]') as HTMLButtonElement).click())
+    expect(container.querySelector('[role="listbox"]')?.textContent).toContain('添加文件')
+    expect(container.querySelector('[role="listbox"]')?.textContent).toContain('提及对话或技能')
+    act(() => (Array.from(container.querySelectorAll<HTMLButtonElement>('.composer-menu button')).find((button) => button.textContent?.includes('添加文件')) as HTMLButtonElement).click())
     expect(click).toHaveBeenCalledOnce()
     expect(input?.multiple).toBe(true)
     expect(input?.accept).toBe(
@@ -342,7 +342,7 @@ describe('Composer image ingestion', () => {
 
   it('closes the add menu from its trigger or an outside click', () => {
     renderComposer()
-    const trigger = container.querySelector('button[aria-label="Add context"]') as HTMLButtonElement
+    const trigger = container.querySelector('button[aria-label="添加上下文"]') as HTMLButtonElement
 
     act(() => trigger.click())
     expect(container.querySelector('.composer-menu')).not.toBeNull()
@@ -364,8 +364,8 @@ describe('Composer image ingestion', () => {
       dispatchDrag('dragenter', textarea, [pastedPng()])
       dispatchDrag('dragleave', textarea, [pastedPng()])
     })
-    expect(container.querySelector('.composer-drop-feedback')?.textContent).toContain('Drop files')
-    expect(container.querySelector('[role="status"]')?.textContent).toContain('Drop files')
+    expect(container.querySelector('.composer-drop-feedback')?.textContent).toContain('松开以添加文件')
+    expect(container.querySelector('[role="status"]')?.textContent).toContain('松开以添加文件')
 
     await act(async () => {
       dispatchDrag('drop', composer, [pastedPng()])
@@ -385,7 +385,7 @@ describe('Composer image ingestion', () => {
     expect(container.querySelectorAll('.composer-attachment')).toHaveLength(2)
     expect(container.textContent).toContain('notes.txt')
     await act(async () => {
-      ;(container.querySelector('button[aria-label="Send message"]') as HTMLButtonElement).click()
+      ;(container.querySelector('button[aria-label="发送"]') as HTMLButtonElement).click()
     })
     expect(container.querySelector('[role="alert"]')?.textContent).toContain('notes.txt cannot be sent')
     expect((container.querySelector('textarea') as HTMLTextAreaElement).value).toBe('keep this text')
@@ -413,21 +413,21 @@ describe('Composer image ingestion', () => {
     await pickFiles([pastedPng()])
     expect(container.querySelector('[role="alert"]')).toBeNull()
     expect(container.querySelector('.composer-attachment')?.textContent).toContain('pasted.png')
-    act(() => container.querySelector<HTMLButtonElement>('button[aria-label="Remove pasted.png"]')?.click())
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-label="移除 pasted.png"]')?.click())
     expect(container.querySelector('.composer-attachment')).toBeNull()
   })
 
   it('removes a chosen image and exposes accessible picker and attachment status labels', async () => {
     renderComposer()
     await pickFiles([pastedPng()])
-    expect(container.querySelector('[role="status"]')?.textContent).toContain('1 file attached')
+    expect(container.querySelector('[role="status"]')?.textContent).toContain('已添加 1 个文件')
 
-    const remove = container.querySelector<HTMLButtonElement>('button[aria-label="Remove pasted.png"]')
+    const remove = container.querySelector<HTMLButtonElement>('button[aria-label="移除 pasted.png"]')
     expect(remove).not.toBeNull()
     act(() => remove?.click())
     expect(container.querySelector('.composer-attachment')).toBeNull()
     expect(container.querySelector('[role="status"]')?.textContent).toBe('')
-    expect(container.querySelector('button[aria-label="Add context"]')?.getAttribute('title')).toBe('Add context')
+    expect(container.querySelector('button[aria-label="添加上下文"]')?.getAttribute('title')).toBe('添加上下文')
   })
 
 })
@@ -447,7 +447,7 @@ describe('Composer message delivery shortcuts', () => {
     })
   }
 
-  it('queues with Enter and steers with Ctrl+Enter while Prime is working', async () => {
+  it('queues with Enter and steers with Ctrl+Enter while Prime 正在处理', async () => {
     const onSend = renderComposer(vi.fn(async () => undefined), true, true)
     await enterDraft('Queue this')
     await enterDraft('Steer with this', { ctrlKey: true })
@@ -507,7 +507,7 @@ describe('Composer submission lifecycle', () => {
     />))
     const textarea = container.querySelector('textarea') as HTMLTextAreaElement
     expect(textarea.disabled).toBe(false)
-    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')?.disabled).toBe(true)
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="发送"]')?.disabled).toBe(true)
   })
 
   it('guards double submission in the handler and refocuses after send resolves', async () => {
@@ -538,8 +538,8 @@ describe('Composer context usage and stop control', () => {
     expect(dial?.getAttribute('aria-valuenow')).toBe('50')
     expect(dial?.style.getPropertyValue('--context-percent')).toBe('50%')
     expect(actions?.firstElementChild).toBe(dial)
-    expect(dial?.nextElementSibling?.getAttribute('aria-label')).toBe('Start dictation')
-    expect(dial?.nextElementSibling?.nextElementSibling?.getAttribute('aria-label')).toBe('Send message')
+    expect(dial?.nextElementSibling?.getAttribute('aria-label')).toBe('开始听写')
+    expect(dial?.nextElementSibling?.nextElementSibling?.getAttribute('aria-label')).toBe('发送')
   })
 
   it('shows unavailable usage honestly and uses a square stop icon', () => {
@@ -548,13 +548,13 @@ describe('Composer context usage and stop control', () => {
     const dial = container.querySelector<HTMLElement>('[role="meter"]')
     expect(dial?.textContent).toBe('—')
     expect(dial?.hasAttribute('aria-valuenow')).toBe(false)
-    expect(dial?.title).toContain('unavailable')
-    expect(container.querySelector('button[aria-label="Stop Prime"] .lucide-square')).not.toBeNull()
+    expect(dial?.title).toContain('下一次回复后')
+    expect(container.querySelector('button[aria-label="停止 Prime"] .lucide-square')).not.toBeNull()
     expect(container.querySelector('.lucide-circle-stop')).toBeNull()
   })
   it('labels the stop control with the active Pi harness', () => {
     renderComposer(vi.fn(), true, true, 'queue', undefined, undefined, 'Pi')
-    expect(container.querySelector('button[aria-label="Stop Pi"] .lucide-square')).not.toBeNull()
+    expect(container.querySelector('button[aria-label="停止 Pi"] .lucide-square')).not.toBeNull()
   })
 })
 

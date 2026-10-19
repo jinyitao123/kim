@@ -57,20 +57,20 @@ describe('composer queue tray', () => {
     expect(tray?.nextElementSibling?.classList.contains('composer')).toBe(true)
     const actions = [...(tray?.querySelectorAll<HTMLButtonElement>('.composer-queue__action') ?? [])]
     expect(actions.map((action) => action.title)).toEqual([
-      'Send queued message immediately',
-      'Edit queued message',
-      'Delete queued message',
+      '立即发送',
+      '编辑',
+      '删除',
     ])
 
-    act(() => container.querySelector<HTMLButtonElement>('[aria-label^="Send queued message immediately"]')?.click())
+    act(() => container.querySelector<HTMLButtonElement>('[aria-label^="立即发送"]')?.click())
     expect(onDelete).toHaveBeenCalledWith(queued)
     expect(onSend).toHaveBeenCalledWith('run tests', [], 'steer', [])
 
-    act(() => container.querySelector<HTMLButtonElement>('[aria-label^="Edit queued message"]')?.click())
+    act(() => container.querySelector<HTMLButtonElement>('[aria-label^="编辑："]')?.click())
     expect(onEdit).toHaveBeenCalledWith(queued)
     expect(container.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('run tests')
 
-    act(() => container.querySelector<HTMLButtonElement>('[aria-label^="Delete queued message"]')?.click())
+    act(() => container.querySelector<HTMLButtonElement>('[aria-label^="删除："]')?.click())
     expect(onDelete).toHaveBeenCalledWith(queued)
   })
 })

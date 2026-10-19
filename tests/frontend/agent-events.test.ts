@@ -55,9 +55,9 @@ describe('session usage events', () => {
   it('appends the session cost to the context dial label only when known', () => {
     const contextUsage = { tokens: 12_000, contextWindow: 100_000, percent: 12 }
     expect(contextDialLabel(contextUsage, undefined)).toBe('12,000 / 100,000 tokens')
-    expect(contextDialLabel(contextUsage, { cost: 0.42, tokens })).toBe('12,000 / 100,000 tokens \u00b7 $0.42 session cost')
-    expect(contextDialLabel(contextUsage, { cost: 0, tokens })).toBe('12,000 / 100,000 tokens \u00b7 pricing unavailable')
-    expect(contextDialLabel({ tokens: null, contextWindow: 100_000, percent: null }, { cost: 0.42 })).toBe('Context usage unavailable until the next response')
+    expect(contextDialLabel(contextUsage, { cost: 0.42, tokens })).toBe('12,000 / 100,000 tokens \u00b7 本对话花费 $0.42')
+    expect(contextDialLabel(contextUsage, { cost: 0, tokens })).toBe('12,000 / 100,000 tokens \u00b7 价格未知')
+    expect(contextDialLabel({ tokens: null, contextWindow: 100_000, percent: null }, { cost: 0.42 })).toBe('下一次回复后显示上下文用量')
   })
 })
 

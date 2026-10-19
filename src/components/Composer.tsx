@@ -100,25 +100,25 @@ interface ComposerProps {
 }
 
 const commands = [
-  { command: '/review', detail: 'Review current changes' },
-  { command: '/plan', detail: 'Create an implementation plan' },
-  { command: '/compact', detail: 'Compact session context' },
-  { command: '/status', detail: 'Show runtime status' },
+  { command: '/review', detail: '检查当前改动' },
+  { command: '/plan', detail: '制定实施计划' },
+  { command: '/compact', detail: '压缩对话上下文' },
+  { command: '/status', detail: '查看运行状态' },
 ]
 
 const primeCommands = [
   ...commands,
-  { command: '/mcp', detail: 'View MCP integrations and local servers' },
+  { command: '/mcp', detail: '查看 MCP 集成和本地服务' },
 ]
 
 const reasoningLabels: Record<PrimeThinkingLevel, string> = {
-  off: 'Off',
-  minimal: 'Minimal',
-  low: 'Low',
-  medium: 'Standard',
-  high: 'High',
-  xhigh: 'Extra high',
-  max: 'Max',
+  off: '关闭',
+  minimal: '最少',
+  low: '低',
+  medium: '标准',
+  high: '高',
+  xhigh: '很高',
+  max: '最高',
 }
 
 const MAX_IMAGE_PROMPT_BYTES = 2 * 1024 * 1024
@@ -210,7 +210,7 @@ export const Composer = memo(function Composer({
         reference,
         size: reference.bytes,
       })))
-      if (restored.omitted > 0) setAttachmentError('Some draft attachments could not be restored because the workspace attachment limits are full.')
+      if (restored.omitted > 0) setAttachmentError('附件数量已到上限，部分草稿附件没有恢复。')
     }
     if (draft.model && draft.model !== model) onModelChange(draft.model)
     if (draft.effort && draft.effort !== effort) onEffortChange(draft.effort as PrimeThinkingLevel)
@@ -298,7 +298,7 @@ export const Composer = memo(function Composer({
         : currentAnnotations.length > 0 ? '[Page annotations]' : '[Terminal selection]')
     if ((!draftValue.trim() && currentImages.length === 0 && currentTextFiles.length === 0 && currentUnsupportedFiles.length === 0 && currentAnnotations.length === 0 && !hasTerminalSelection) || loading || disabled || (intent !== 'steer' && !busy && (submitting || submittingRef.current))) return
     if (imageAttachments.hasPending()) {
-      setAttachmentError('Wait for the file to finish processing before sending.')
+      setAttachmentError('请等文件处理完再发送。')
       return
     }
     if (currentUnsupportedFiles.length > 0) {
@@ -308,7 +308,7 @@ export const Composer = memo(function Composer({
       return
     }
     if (currentImages.length > 0 && !imageInputSupported) {
-      setAttachmentError('This model does not accept images. Remove the attachment or choose a vision model.')
+      setAttachmentError('当前模型不支持图片，请移除图片或换一个支持图片的模型。')
       return
     }
     const submittedImages = currentImages.map(({ type, data, mimeType }) => ({ type, data, mimeType }))
@@ -325,7 +325,7 @@ export const Composer = memo(function Composer({
     const promptWithContext = appendTerminalContextToPrompt(promptWithAnnotations, currentTerminalContext)
     const frame = `${JSON.stringify({ type: intent === 'steer' ? 'steer' : 'follow_up', message: promptWithContext, ...(submittedImages.length ? { images: submittedImages } : {}), id: '00000000-0000-0000-0000-000000000000' })}\n`
     if (new TextEncoder().encode(frame).byteLength > MAX_IMAGE_PROMPT_BYTES) {
-      setAttachmentError('This message and its attachments are too large to send. Shorten the message or remove an attachment.')
+      setAttachmentError('消息和附件太大，请缩短内容或移除附件。')
       return
     }
     submittingRef.current = true
@@ -350,15 +350,15 @@ export const Composer = memo(function Composer({
         const fileRestoration = imageAttachments.restoreTextFilesWithinLimits(submittedComposerTextFiles)
         pendingSubmissionAttachmentsRef.current = []
         if (restoration.omitted + fileRestoration.omitted > 0) {
-          const restoredImages = restoration.restored > 0 ? ` along with ${restoration.restored} submitted image${restoration.restored === 1 ? '' : 's'}` : ''
-          const restoredFiles = fileRestoration.restored > 0 ? ` and ${fileRestoration.restored} text file${fileRestoration.restored === 1 ? '' : 's'}` : ''
-          setAttachmentError(`Message was not sent. Your draft was restored${restoredImages}${restoredFiles}, but ${restoration.omitted + fileRestoration.omitted} attachment${restoration.omitted + fileRestoration.omitted === 1 ? '' : 's'} could not be restored because the attachment limits are full.`)
+          const restoredImages = restoration.restored > 0 ? `、${restoration.restored} 张图片` : ''
+          const restoredFiles = fileRestoration.restored > 0 ? `、${fileRestoration.restored} 个文本文件` : ''
+          setAttachmentError(`消息没有发出。已恢复草稿${restoredImages}${restoredFiles}，但附件数量已到上限，有 ${restoration.omitted + fileRestoration.omitted} 个附件没有恢复。`)
         } else if (submittedComposerImages.length > 0 || submittedComposerTextFiles.length > 0) {
           const cause = error instanceof Error ? error.message : ''
-          setAttachmentError(cause ? `${cause} Your draft and attachments were restored.` : 'Message was not sent. Your draft and attachments were restored.')
+          setAttachmentError(cause ? `${cause} Your draft and attachments were restored.` : '消息没有发出，草稿和附件已恢复。')
         } else {
           const cause = error instanceof Error ? error.message : ''
-          setAttachmentError(cause ? `${cause} Your draft was restored.` : 'Message was not sent. Your draft was restored.')
+          setAttachmentError(cause ? `${cause} Your draft was restored.` : '消息没有发出，草稿已恢复。')
         }
       }
     } finally {
@@ -449,8 +449,8 @@ export const Composer = memo(function Composer({
           ].slice(0, 8)
         : menu === 'add'
           ? [
-              { key: 'files', label: 'Add files', detail: 'Attach images, audio, video, or other files', icon: <Paperclip size={14} />, choose: () => { setMenu(null); fileInputRef.current?.click() } },
-              { key: 'mention', label: 'Mention a session or skill', detail: 'Reference sidebar work or an enabled capability', icon: <AtSign size={14} />, choose: () => insert('@') },
+              { key: 'files', label: '添加文件', detail: '添加图片、音视频或其他文件', icon: <Paperclip size={14} />, choose: () => { setMenu(null); fileInputRef.current?.click() } },
+              { key: 'mention', label: '提及对话或技能', detail: '引用侧栏中的工作或已启用的能力', icon: <AtSign size={14} />, choose: () => insert('@') },
             ]
           : []
 
@@ -474,9 +474,9 @@ export const Composer = memo(function Composer({
   return (
     <div className="composer-wrap">
       {queuedMessages.length ? (
-        <section className="composer-queue" aria-label="Queued messages" aria-live="polite">
+        <section className="composer-queue" aria-label="待发送的消息" aria-live="polite">
           <div className="composer-queue__header">
-            <span><Clock3 size={13} />Queued messages</span>
+            <span><Clock3 size={13} />待发送的消息</span>
             <strong>{queuedMessages.length}</strong>
           </div>
           <div className="composer-queue__list">
@@ -484,9 +484,9 @@ export const Composer = memo(function Composer({
               <div className="composer-queue__item" key={queued.id}>
                 <span className="composer-queue__text">{queued.text}</span>
                 <span className="composer-queue__actions">
-                  <button type="button" className="composer-queue__action" aria-label={`Send queued message immediately: ${queued.text}`} title="Send queued message immediately" onClick={() => { void sendQueuedMessageImmediately(queued) }}><ArrowUp size={13} /></button>
-                  <button type="button" className="composer-queue__action" aria-label={`Edit queued message: ${queued.text}`} title="Edit queued message" onClick={() => { onEditQueuedMessage?.(queued); setValue(queued.text); requestAnimationFrame(() => textareaRef.current?.focus()) }}><Edit3 size={13} /></button>
-                  <button type="button" className="composer-queue__action composer-queue__action--delete" aria-label={`Delete queued message: ${queued.text}`} title="Delete queued message" onClick={() => onDeleteQueuedMessage?.(queued)}><Trash2 size={13} /></button>
+                  <button type="button" className="composer-queue__action" aria-label={`立即发送：${queued.text}`} title="立即发送" onClick={() => { void sendQueuedMessageImmediately(queued) }}><ArrowUp size={13} /></button>
+                  <button type="button" className="composer-queue__action" aria-label={`编辑：${queued.text}`} title="编辑" onClick={() => { onEditQueuedMessage?.(queued); setValue(queued.text); requestAnimationFrame(() => textareaRef.current?.focus()) }}><Edit3 size={13} /></button>
+                  <button type="button" className="composer-queue__action composer-queue__action--delete" aria-label={`删除：${queued.text}`} title="删除" onClick={() => onDeleteQueuedMessage?.(queued)}><Trash2 size={13} /></button>
                 </span>
               </div>
             ))}
@@ -497,15 +497,15 @@ export const Composer = memo(function Composer({
         className={`composer ${busy || submitting ? 'composer--busy' : ''} ${imageAttachments.dragging ? 'composer--image-dragging' : ''}`}
         {...imageAttachments.dragHandlers}
       >
-        {imageAttachments.dragging ? <div className="composer-drop-feedback" aria-hidden="true"><Paperclip size={18} />Drop files to attach</div> : null}
+        {imageAttachments.dragging ? <div className="composer-drop-feedback" aria-hidden="true"><Paperclip size={18} />松开以添加文件</div> : null}
         <div className="composer-input">
           <textarea
             ref={textareaRef}
             value={value}
             disabled={disabled || loading}
             rows={2}
-            placeholder={disabled ? '正在准备工作空间…' : loading ? '正在加载…' : submitting ? '正在开始…' : personalWorkspace ? '说说你想完成什么，也可以添加文件' : `Ask ${shortName} anything, @ for sessions and skills, / for commands`}
-            aria-label={personalWorkspace ? '给工作助手发消息' : `Message ${shortName}`}
+            placeholder={disabled ? '正在准备工作空间…' : loading ? '正在加载…' : submitting ? '正在开始…' : personalWorkspace ? '说说你想完成什么，也可以添加文件' : `有什么要做的？@ 提及对话和技能，/ 使用命令`}
+            aria-label={personalWorkspace ? '给工作助手发消息' : `给 ${shortName} 发消息`}
             role="combobox"
             aria-autocomplete="list"
             aria-expanded={Boolean(menu && suggestions.length)}
@@ -560,7 +560,7 @@ export const Composer = memo(function Composer({
           />
         </div>
         {menu && suggestions.length ? (
-          <div ref={menuRef} id={menuId} className="composer-menu" role="listbox" aria-label={menu === 'command' ? 'Commands' : menu === 'mention' ? 'Sessions and skills' : 'Add context'}>
+          <div ref={menuRef} id={menuId} className="composer-menu" role="listbox" aria-label={menu === 'command' ? '命令' : menu === 'mention' ? '对话和技能' : '添加上下文'}>
             {suggestions.map((suggestion, index) => (
               <button
                 id={`${menuId}-option-${index}`}
@@ -583,7 +583,7 @@ export const Composer = memo(function Composer({
           </div>
         ) : null}
         {annotationsOpen && annotations.length ? (
-          <div className="composer-annotations" role="region" aria-label="Page annotation details">
+          <div className="composer-annotations" role="region" aria-label="网页标注详情">
             {annotations.map((annotation, index) => {
               return (
                 <div className="composer-annotation" key={annotation.id}>
@@ -594,7 +594,7 @@ export const Composer = memo(function Composer({
                     <p>{annotation.comment}</p>
                     {annotation.stale ? <small>page changed since capture</small> : null}
                   </div>
-                  <button type="button" aria-label={`Remove annotation ${index + 1}`} onClick={() => onRemoveAnnotation(annotation.id)}>
+                  <button type="button" aria-label={`移除标注 ${index + 1}`} onClick={() => onRemoveAnnotation(annotation.id)}>
                     <X size={12} />
                   </button>
                 </div>
@@ -603,7 +603,7 @@ export const Composer = memo(function Composer({
           </div>
         ) : null}
         {terminalSelectionOpen && terminalSelection?.text ? (
-          <div className="composer-terminal-selection" role="region" aria-label="Selected terminal text">
+          <div className="composer-terminal-selection" role="region" aria-label="选中的终端文本">
             <div>
               <SquareTerminal size={14} aria-hidden="true" />
               <strong>{terminalSelection.label}</strong>
@@ -613,14 +613,14 @@ export const Composer = memo(function Composer({
           </div>
         ) : null}
         {images.length || textFiles.length || unsupportedFiles.length || annotations.length || terminalSelection?.text ? (
-          <div className="composer-attachments" aria-label="Attachments">
+          <div className="composer-attachments" aria-label="附件">
             {annotations.length ? (
-              <div className="composer-attachment composer-attachment--annotations" title={`${annotations.length} page annotation${annotations.length === 1 ? '' : 's'}`}>
+              <div className="composer-attachment composer-attachment--annotations" title={`${annotations.length} 个网页标注`}>
                 <button
                   type="button"
                   className="composer-attachment__expand"
                   aria-expanded={annotationsOpen}
-                  aria-label={`Inspect ${annotations.length} page annotation${annotations.length === 1 ? '' : 's'}`}
+                  aria-label={`查看 ${annotations.length} 个网页标注`}
                   onClick={() => setAnnotationsOpen((open) => !open)}
                 >
                   <MessageCirclePlus size={13} />
@@ -630,7 +630,7 @@ export const Composer = memo(function Composer({
                 <button
                   type="button"
                   className="composer-attachment__clear"
-                  aria-label="Remove page annotations"
+                  aria-label="移除网页标注"
                   onClick={() => {
                     setAnnotationsOpen(false)
                     onClearAnnotations()
@@ -641,19 +641,19 @@ export const Composer = memo(function Composer({
               </div>
             ) : null}
             {terminalSelection?.text ? (
-              <div className="composer-attachment composer-attachment--terminal has-selection" title={`Selected text from ${terminalSelection.label}`}>
+              <div className="composer-attachment composer-attachment--terminal has-selection" title={`来自 ${terminalSelection.label} 的选中文本`}>
                 <button
                   type="button"
                   className="composer-attachment__expand"
                   aria-expanded={terminalSelectionOpen}
-                  aria-label={`Inspect selected text from ${terminalSelection.label}`}
+                  aria-label={`查看来自 ${terminalSelection.label} 的选中文本`}
                   onClick={() => setTerminalSelectionOpen((open) => !open)}
                 >
                   <SquareTerminal size={13} />
                   <span>{terminalSelection.label}</span>
                   <small>selected</small><ChevronDown size={11} className={terminalSelectionOpen ? 'is-open' : ''} />
                 </button>
-                <button type="button" className="composer-attachment__clear" aria-label="Clear terminal selection" onClick={onClearTerminalSelection}><X size={12} /></button>
+                <button type="button" className="composer-attachment__clear" aria-label="清除终端选中" onClick={onClearTerminalSelection}><X size={12} /></button>
               </div>
             ) : null}
             {images.map((image) => (
@@ -665,7 +665,7 @@ export const Composer = memo(function Composer({
                 </span>
                 <button
                   type="button"
-                  aria-label={`Remove ${image.name}`}
+                  aria-label={`移除 ${image.name}`}
                   onClick={() => imageAttachments.remove(image.id)}
                 >
                   <X size={12} />
@@ -680,7 +680,7 @@ export const Composer = memo(function Composer({
                 </span>
                 <button
                   type="button"
-                  aria-label={`Remove ${file.reference.name}`}
+                  aria-label={`移除 ${file.reference.name}`}
                   onClick={() => imageAttachments.remove(file.id)}
                 >
                   <X size={12} />
@@ -695,7 +695,7 @@ export const Composer = memo(function Composer({
                 </span>
                 <button
                   type="button"
-                  aria-label={`Remove ${file.name}`}
+                  aria-label={`移除 ${file.name}`}
                   onClick={() => imageAttachments.remove(file.id)}
                 >
                   <X size={12} />
@@ -710,12 +710,12 @@ export const Composer = memo(function Composer({
           </p>
         ) : null}
         <p id={imageStatusId} className="sr-only" role="status" aria-live="polite">
-          {imageAttachments.dragging ? 'Drop files to attach.' : processingImages ? 'Adding files.' : images.length + textFiles.length + unsupportedFiles.length ? `${images.length + textFiles.length + unsupportedFiles.length} file${images.length + textFiles.length + unsupportedFiles.length === 1 ? '' : 's'} attached.` : ''}
+          {imageAttachments.dragging ? '松开以添加文件。' : processingImages ? '正在添加文件。' : images.length + textFiles.length + unsupportedFiles.length ? `已添加 ${images.length + textFiles.length + unsupportedFiles.length} 个文件。` : ''}
         </p>
         <div className="composer__footer">
           <div className="composer__controls">
             <IconButton
-              label="Add context"
+              label="添加上下文"
               data-composer-menu-trigger
               aria-expanded={menu === 'add'}
               aria-controls={menu === 'add' ? menuId : undefined}
@@ -733,7 +733,7 @@ export const Composer = memo(function Composer({
               multiple
               accept=".txt,.md,.markdown,.csv,.json,.pdf,.docx,.xlsx,text/plain,text/markdown,text/csv,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/png,image/jpeg,image/gif,image/webp"
               tabIndex={-1}
-              aria-label="Choose files to attach"
+              aria-label="选择要添加的文件"
               aria-describedby={imageStatusId}
               disabled={disabled || loading || submitting}
               onChange={(event) => {
@@ -744,7 +744,7 @@ export const Composer = memo(function Composer({
             />
             <ModelPicker value={model} modelsByProvider={modelsByProvider} providers={providers} onChange={onModelChange} />
             <ExecutingModelChip executingModel={executingModel} />
-            <SelectControl label="Reasoning effort" compact icon={<Gauge size={12} />} value={effort} onChange={(event) => onEffortChange(event.target.value as PrimeThinkingLevel)}>
+            <SelectControl label="思考强度" compact icon={<Gauge size={12} />} value={effort} onChange={(event) => onEffortChange(event.target.value as PrimeThinkingLevel)}>
               {reasoningLevels.map((level) => (
                 <option key={level} value={level}>
                   {reasoningLabels[level]}
@@ -757,20 +757,20 @@ export const Composer = memo(function Composer({
                 className={`fast-mode-toggle ${fast ? 'is-active' : ''}`}
                 aria-pressed={fast}
                 disabled={!fastAvailable}
-                title={fastAvailable ? `Use ${agentName} priority service tier` : `The installed ${agentName} RPC runtime does not expose fast mode`}
+                title={fastAvailable ? `使用 ${agentName} 优先服务档位` : `已安装的 ${agentName} 不支持快速模式`}
                 onClick={() => onFastChange(!fast)}
               >
-                <Zap size={12} fill={fast ? 'currentColor' : 'none'} /> <span className="fast-mode-toggle__label">Fast</span>
+                <Zap size={12} fill={fast ? 'currentColor' : 'none'} /> <span className="fast-mode-toggle__label">快速</span>
               </button>
             ) : null}
             {!personalWorkspace ? <CheckoutPicker catalog={checkoutCatalog} fallbackLabel={checkoutLabel} loading={checkoutsLoading} onExecute={onExecuteCheckout} /> : null}
           </div>
           <div className="composer__actions">
-            {dictation.state === 'connecting' || dictation.state === 'recording' ? <button type="button" className="context-usage-dial context-usage-dial--cancel" aria-label="Cancel dictation" title="Cancel dictation" onClick={dictation.cancel}><X size={14} /></button> : <span
+            {dictation.state === 'connecting' || dictation.state === 'recording' ? <button type="button" className="context-usage-dial context-usage-dial--cancel" aria-label="取消听写" title="取消听写" onClick={dictation.cancel}><X size={14} /></button> : <span
               className={`context-usage-dial ${contextPercent === null ? 'is-unavailable' : contextPercent >= 95 ? 'is-critical' : contextPercent >= 80 ? 'is-warning' : ''}`}
               role="meter"
               tabIndex={0}
-              aria-label="Context usage"
+              aria-label="上下文用量"
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={contextPercent === null ? undefined : Math.round(contextPercent)}
@@ -784,23 +784,23 @@ export const Composer = memo(function Composer({
             <button
               type="button"
               className={`dictation-button ${dictation.state === 'recording' ? 'is-recording' : ''}`}
-              aria-label={dictation.state === 'recording' ? 'Stop and transcribe dictation' : dictation.state === 'connecting' ? 'Connecting microphone' : dictation.state === 'transcribing' ? 'Transcribing dictation' : 'Start dictation'}
+              aria-label={dictation.state === 'recording' ? '停止并转写' : dictation.state === 'connecting' ? '正在连接麦克风' : dictation.state === 'transcribing' ? '正在转写' : '开始听写'}
               disabled={!voice || loading || disabled || submitting || dictation.state === 'connecting' || dictation.state === 'transcribing'}
               onClick={() => { if (dictation.state === 'recording') void finishDictation(false); else void dictation.start() }}
             >
               {dictation.state === 'recording' ? <Square size={10} fill="currentColor" /> : dictation.state === 'connecting' || dictation.state === 'transcribing' ? <LoaderCircle className="is-spinning" size={15} /> : <Mic size={15} />}
             </button>
             {dictation.state === 'recording' ? (
-              <button type="button" className="send-button" aria-label="Transcribe and send message" onClick={() => void finishDictation(true)}><ArrowUp size={17} /></button>
+              <button type="button" className="send-button" aria-label="转写并发送" onClick={() => void finishDictation(true)}><ArrowUp size={17} /></button>
             ) : busy ? (
-              <button type="button" className="send-button send-button--stop" aria-label={`Stop ${shortName}`} onClick={() => void onStop()}>
+              <button type="button" className="send-button send-button--stop" aria-label={`停止 ${shortName}`} onClick={() => void onStop()}>
                 <Square size={10} fill="currentColor" aria-hidden="true" />
               </button>
             ) : (
               <button
                 type="button"
                 className="send-button"
-                aria-label="Send message"
+                aria-label="发送"
               disabled={(!value.trim() && images.length === 0 && textFiles.length === 0 && unsupportedFiles.length === 0 && annotations.length === 0 && !terminalSelection?.text) || processingImages || submitting || loading || disabled}
                 onClick={() => void submit()}
               >

@@ -58,15 +58,15 @@ describe('composer dictation controls', () => {
     vi.mocked(useDictation).mockReturnValue({ state: 'idle', start, finish, cancel })
     act(() => root.render(<Composer {...composerProps()} />))
     const actions = container.querySelector('.composer__actions')!
-    expect([...actions.children].map((element) => element.getAttribute('aria-label'))).toEqual(['Context usage', 'Start dictation', 'Send message'])
+    expect([...actions.children].map((element) => element.getAttribute('aria-label'))).toEqual(['上下文用量', '开始听写', '发送'])
   })
 
   it('turns context into cancel and the microphone into stop while recording', () => {
     vi.mocked(useDictation).mockReturnValue({ state: 'recording', start, finish, cancel })
     act(() => root.render(<Composer {...composerProps()} />))
-    const cancelButton = container.querySelector<HTMLButtonElement>('[aria-label="Cancel dictation"]')!
-    expect(container.querySelector('[aria-label="Stop and transcribe dictation"]')).not.toBeNull()
-    expect(container.querySelector('[aria-label="Transcribe and send message"]')).not.toBeNull()
+    const cancelButton = container.querySelector<HTMLButtonElement>('[aria-label="取消听写"]')!
+    expect(container.querySelector('[aria-label="停止并转写"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="转写并发送"]')).not.toBeNull()
     act(() => cancelButton.click())
     expect(cancel).toHaveBeenCalledOnce()
   })
@@ -76,7 +76,7 @@ describe('composer dictation controls', () => {
     const onSend = vi.fn().mockResolvedValue(undefined)
     vi.mocked(useDictation).mockReturnValue({ state: 'recording', start, finish, cancel })
     act(() => root.render(<Composer {...composerProps({ onSend })} />))
-    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Transcribe and send message"]')?.click())
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="转写并发送"]')?.click())
     expect(finish).toHaveBeenCalledOnce()
     expect(onSend).toHaveBeenCalledWith('ship the voice feature', [], 'queue', [])
   })

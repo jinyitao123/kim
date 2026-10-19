@@ -60,11 +60,11 @@ describe('sidebar update control', () => {
 
     await press(container.querySelector('.sidebar-update')!)
     const dialog = document.body.querySelector('[role="dialog"]')
-    expect(dialog?.textContent).toContain('Restart Kim to install the update?')
-    expect(dialog?.textContent).toContain('close and restart')
-    expect(dialog?.textContent).not.toContain('download the update')
+    expect(dialog?.textContent).toContain('重启 Kim 以安装更新？')
+    expect(dialog?.textContent).toContain('关闭并重启')
+    expect(dialog?.textContent).not.toContain('下载更新')
 
-    const yes = [...document.body.querySelectorAll<HTMLButtonElement>('.modal__footer button')].find((button) => button.textContent === 'Yes')
+    const yes = [...document.body.querySelectorAll<HTMLButtonElement>('.modal__footer button')].find((button) => button.textContent === '好的')
     await press(yes!)
     expect(onUpdateAction).toHaveBeenCalledOnce()
   })
@@ -76,7 +76,7 @@ describe('sidebar update control', () => {
     const update = container.querySelector<HTMLButtonElement>('.sidebar-update')
     expect(update).not.toBeNull()
     expect(update?.classList.contains('sidebar-update--error')).toBe(true)
-    expect(update?.textContent).toContain('Retry update 0.2.0')
+    expect(update?.textContent).toContain('重试更新 0.2.0')
     expect(update?.getAttribute('title')).toBe('network went away')
     expect(update?.disabled).toBe(false)
 
@@ -91,13 +91,13 @@ describe('sidebar update control', () => {
     await renderSidebar({ phase: 'downloading', version: '0.2.0' }, onUpdateAction)
 
     const update = container.querySelector('.sidebar-update')
-    expect(update?.textContent).toContain('Downloading 0.2.0')
+    expect(update?.textContent).toContain('正在下载 0.2.0')
     expect(update?.textContent).not.toContain('%')
     expect(update?.classList.contains('sidebar-update--indeterminate')).toBe(true)
 
     await renderSidebar({ phase: 'downloading', version: '0.2.0', percent: 12 }, onUpdateAction)
     const progressing = container.querySelector('.sidebar-update')
-    expect(progressing?.textContent).toContain('Downloading 0.2.0 · 12%')
+    expect(progressing?.textContent).toContain('正在下载 0.2.0 · 12%')
     expect(progressing?.classList.contains('sidebar-update--indeterminate')).toBe(false)
   })
 
@@ -109,6 +109,6 @@ describe('sidebar update control', () => {
     expect(update?.getAttribute('aria-live')).toBeNull()
     const status = container.querySelector('.sidebar__footer [role="status"]')
     expect(status?.getAttribute('aria-live')).toBe('polite')
-    expect(status?.textContent).toBe('Downloading Kim update 0.2.0')
+    expect(status?.textContent).toBe('正在下载 Kim 更新 0.2.0')
   })
 })

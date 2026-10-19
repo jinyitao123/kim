@@ -172,7 +172,7 @@ describe('pi RPC handshake', () => {
     // get_state never reach the runtime info.
     expect(runtime.serviceTier).toBeUndefined()
     expect(runtime.fastModeAvailable).toBeUndefined()
-    // Context usage flows through the shared get_session_stats path, not the
+    // 上下文用量 flows through the shared get_session_stats path, not the
     // contextUsage field pi's get_state does not really carry.
     expect(runtime.contextUsage).toEqual({ tokens: 12_000, contextWindow: 272_000, percent: 4 })
     expect(runtime.sessionUsage).toEqual({ cost: 0.4321, tokens: { input: 10_000, output: 2_000, cacheRead: 500, cacheWrite: 100, total: 12_600 } })

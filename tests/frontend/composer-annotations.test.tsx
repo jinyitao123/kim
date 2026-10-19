@@ -130,7 +130,7 @@ const setDraft = async (value: string) => {
 
 const clickSend = async () => {
   await act(async () => {
-    ;(container.querySelector('button[aria-label="Send message"]') as HTMLButtonElement).click()
+    ;(container.querySelector('button[aria-label="发送"]') as HTMLButtonElement).click()
     await Promise.resolve()
   })
 }
@@ -235,7 +235,7 @@ describe('Composer workspace text attachments', () => {
     expect(container.textContent).toContain('source.md')
     expect(onImportTextFile).toHaveBeenCalledOnce()
 
-    const remove = container.querySelector('button[aria-label="Remove source.md"]') as HTMLButtonElement
+    const remove = container.querySelector('button[aria-label="移除 source.md"]') as HTMLButtonElement
     await act(async () => { remove.click(); await Promise.resolve() })
     expect(window.sessionStorage.getItem(storageKey)).toBeNull()
   })
@@ -307,8 +307,8 @@ describe('Composer annotation attachment', () => {
     renderComposer({ annotations: [annotation('a'), annotation('b')] })
     const chip = container.querySelector('.composer-attachment--annotations')
     expect(chip?.textContent).toContain('2')
-    expect(chip?.getAttribute('title')).toBe('2 page annotations')
-    expect(chip?.querySelector('.composer-attachment__expand')?.getAttribute('aria-label')).toContain('2 page annotations')
+    expect(chip?.getAttribute('title')).toBe('2 个网页标注')
+    expect(chip?.querySelector('.composer-attachment__expand')?.getAttribute('aria-label')).toContain('2 个网页标注')
     expect(container.querySelector('.composer-annotations')).toBeNull()
   })
 
@@ -329,7 +329,7 @@ describe('Composer annotation attachment', () => {
     expect(panel?.textContent).toContain('page changed')
 
     await act(async () => {
-      ;(container.querySelector('button[aria-label="Remove annotation 2"]') as HTMLButtonElement).click()
+      ;(container.querySelector('button[aria-label="移除标注 2"]') as HTMLButtonElement).click()
     })
     expect(onRemoveAnnotation).toHaveBeenCalledWith('b')
   })
@@ -337,7 +337,7 @@ describe('Composer annotation attachment', () => {
   it('removes the whole attachment through the chip control', async () => {
     const { onClearAnnotations } = renderComposer({ annotations: [annotation('a')] })
     await act(async () => {
-      ;(container.querySelector('button[aria-label="Remove page annotations"]') as HTMLButtonElement).click()
+      ;(container.querySelector('button[aria-label="移除网页标注"]') as HTMLButtonElement).click()
     })
     expect(onClearAnnotations).toHaveBeenCalledTimes(1)
   })
@@ -361,7 +361,7 @@ describe('Composer annotation attachment', () => {
 
   it('allows sending with annotations alone using a placeholder prompt', async () => {
     const { onSend } = renderComposer({ annotations: [annotation('a')] })
-    const send = container.querySelector('button[aria-label="Send message"]') as HTMLButtonElement
+    const send = container.querySelector('button[aria-label="发送"]') as HTMLButtonElement
     expect(send.disabled).toBe(false)
     await clickSend()
     const [prompt] = onSend.mock.calls[0]
@@ -384,7 +384,7 @@ describe('Composer annotation attachment', () => {
   it('disables send and hides the chip without annotations', () => {
     renderComposer()
     expect(container.querySelector('.composer-attachment--annotations')).toBeNull()
-    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')?.disabled).toBe(true)
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="发送"]')?.disabled).toBe(true)
   })
 })
 
@@ -395,25 +395,25 @@ describe('Composer terminal context attachment', () => {
   it('does not show an attachment or enable send without selected terminal text', () => {
     renderComposer({ terminalSelection: { ...selection, text: '' } })
     expect(container.querySelector('.composer-attachment--terminal')).toBeNull()
-    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')?.disabled).toBe(true)
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="发送"]')?.disabled).toBe(true)
   })
 
   it('expands and clears highlighted terminal text through its live attachment', async () => {
     const { onClearTerminalSelection } = renderComposer({ terminalSelection: selection })
-    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')?.disabled).toBe(false)
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="发送"]')?.disabled).toBe(false)
     await act(async () => {
-      ;(container.querySelector('button[aria-label="Inspect selected text from zsh 2"]') as HTMLButtonElement).click()
+      ;(container.querySelector('button[aria-label="查看来自 zsh 2 的选中文本"]') as HTMLButtonElement).click()
     })
     expect(container.querySelector('.composer-terminal-selection')?.textContent).toContain('npm test')
     await act(async () => {
-      ;(container.querySelector('button[aria-label="Clear terminal selection"]') as HTMLButtonElement).click()
+      ;(container.querySelector('button[aria-label="清除终端选中"]') as HTMLButtonElement).click()
     })
     expect(onClearTerminalSelection).toHaveBeenCalledTimes(1)
     await act(async () => {
       renderComposer({ terminalSelection: { ...selection, text: '' }, onClearTerminalSelection })
     })
     expect(container.querySelector('.composer-terminal-selection')).toBeNull()
-    expect(container.querySelector('button[aria-label="Clear terminal selection"]')).toBeNull()
+    expect(container.querySelector('button[aria-label="清除终端选中"]')).toBeNull()
   })
 
   it('reads and appends only the current terminal selection when submitting', async () => {

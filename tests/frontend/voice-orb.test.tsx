@@ -52,14 +52,14 @@ describe('realtime voice surface', () => {
   it('places the waveform toggle immediately before the terminal button', () => {
     act(() => root.render(<TitleToolbar view="session" sidebarOpen inspectorOpen terminalOpen={false} voiceOpen onToggleSidebar={vi.fn()} onToggleInspector={vi.fn()} onToggleTerminal={vi.fn()} onOpenBrowser={vi.fn()} onToggleVoice={vi.fn()} />))
     const labels = [...container.querySelectorAll<HTMLButtonElement>('.title-toolbar__actions button')].map((button) => button.getAttribute('aria-label'))
-    expect(labels.slice(0, 2)).toEqual(['Close realtime voice', 'Toggle terminal (⌘J)'])
+    expect(labels.slice(0, 2)).toEqual(['关闭实时语音', '终端 (⌘J)'])
   })
 
   it('uses Linux shortcut labels on Linux', () => {
     act(() => root.render(<TitleToolbar platform="linux" view="session" sidebarOpen inspectorOpen terminalOpen={false} onToggleSidebar={vi.fn()} onToggleInspector={vi.fn()} onToggleTerminal={vi.fn()} onOpenBrowser={vi.fn()} />))
     const labels = [...container.querySelectorAll<HTMLButtonElement>('.title-toolbar__actions button')].map((button) => button.getAttribute('aria-label'))
-    expect(labels).toContain('Toggle terminal (Ctrl+J)')
-    expect(labels).toContain('Open browser (Ctrl+Shift+B)')
+    expect(labels).toContain('终端 (Ctrl+J)')
+    expect(labels).toContain('浏览器 (Ctrl+Shift+B)')
   })
 
   it('prefers the live git branch for the session toolbar pill', () => {
@@ -90,11 +90,11 @@ describe('realtime voice surface', () => {
     } as unknown as PrimeWorkApi['voice']
     await act(async () => root.render(<VoiceOrb voice={voice} harness="pi" onClose={vi.fn()} onTaskStarted={vi.fn()} />))
     expect(voice.createRealtimeCall).toHaveBeenCalledWith({ mode: 'conversation', sdp: 'v=0\r\no=test-offer-value', harness: 'pi' })
-    const mute = container.querySelector<HTMLButtonElement>('[aria-label="Mute realtime voice"]')!
-    expect(container.querySelector('[aria-label="Close realtime voice"]')).not.toBeNull()
+    const mute = container.querySelector<HTMLButtonElement>('[aria-label="静音"]')!
+    expect(container.querySelector('[aria-label="关闭实时语音"]')).not.toBeNull()
     await act(async () => mute.click())
     expect(track.enabled).toBe(false)
-    expect(container.querySelector('[aria-label="Unmute realtime voice"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="取消静音"]')).not.toBeNull()
   })
 
   it('executes a start_task call and reports the started task to the workspace', async () => {
@@ -109,9 +109,9 @@ describe('realtime voice surface', () => {
     })
     expect(executeTool).toHaveBeenCalledWith({ name: 'start_task', arguments: { project_id: 'p1', prompt: 'Build it', model: 'openai-codex/gpt-5.6-sol', reasoning: 'high' } }, 'prime')
     expect(onTaskStarted).toHaveBeenCalledWith(task)
-    expect(container.textContent).toContain('Task started')
+    expect(container.textContent).toContain('任务已开始')
     expect(container.textContent).toContain('Prime · Prime')
-    expect(container.textContent).toContain('Opened in the sidebar')
+    expect(container.textContent).toContain('已在侧栏打开')
   })
 
   it('forwards model discovery calls through the pinned harness', async () => {
@@ -268,7 +268,7 @@ describe('realtime voice surface', () => {
       await Promise.resolve()
     })
     expect(container.textContent).toContain('Task was not started: Pi did not create a visible session')
-    expect(container.textContent).not.toContain('Task started')
+    expect(container.textContent).not.toContain('任务已开始')
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     await act(async () => {
       FakePeer.latest.channel.dispatchEvent(new MessageEvent('message', { data: JSON.stringify({ type: 'error', error: { code: 'invalid_request_error', message: 'A response is already in progress.' } }) }))

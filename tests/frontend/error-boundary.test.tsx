@@ -83,7 +83,7 @@ describe('transcript per-message boundary', () => {
       />)
     })
     expect(container.textContent).toContain('still here')
-    expect(container.textContent).toContain('This message could not be displayed.')
+    expect(container.textContent).toContain('这条消息无法显示。')
   })
 
   it('isolates a malformed assistant between adjacent healthy assistant messages', async () => {
@@ -106,7 +106,7 @@ describe('transcript per-message boundary', () => {
     expect(rows[0].textContent).toContain('healthy before')
     expect(rows[1].classList.contains('message--render-failure')).toBe(true)
     expect(rows[1].getAttribute('role')).toBe('note')
-    expect(rows[1].textContent).toBe('This message could not be displayed.')
+    expect(rows[1].textContent).toBe('这条消息无法显示。')
     expect(rows[2].textContent).toContain('healthy after')
     expect(container.querySelectorAll('.message--render-failure')).toHaveLength(1)
     expect(broken.parts).toBeUndefined()

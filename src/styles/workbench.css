@@ -52,6 +52,9 @@
 .conversation-bottom-dock { display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .conversation-bottom-dock > * { pointer-events: auto; }
 .conversation-bottom-dock .composer-wrap { position: relative; inset: auto; width: 100%; margin: 0; }
+/* An empty conversation is the home screen: greeting above, the composer just below the middle. */
+.conversation-pane.is-home .conversation-bottom-dock { inset: auto 24px; top: 46%; }
+.conversation-pane.is-home .session-welcome { margin-top: max(48px, calc(46vh - 170px)); }
 
 .resize-handle { position: relative; z-index: 12; flex: 0 0 auto; padding: 0; touch-action: none; outline: 0; }
 .resize-handle > span { position: absolute; display: block; background: var(--border); transition: background 130ms ease-out, box-shadow 130ms ease-out; }

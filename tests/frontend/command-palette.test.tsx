@@ -68,7 +68,7 @@ async function openPalette(): Promise<HTMLElement> {
   await act(async () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))
   })
-  return waitFor(() => document.body.querySelector<HTMLElement>('[role="dialog"][aria-label="Command palette"]'))
+  return waitFor(() => document.body.querySelector<HTMLElement>('[role="dialog"][aria-label="命令面板"]'))
 }
 
 async function search(input: HTMLInputElement, query: string) {
@@ -84,14 +84,14 @@ function commandOptions(dialog: HTMLElement): HTMLButtonElement[] {
 
 const expectedOrder = [
   '开始工作',
-  'Open Projects',
-  'Open Activity',
-  'Open Scheduled',
-  'Open Capabilities',
-  'Toggle browser',
-  'Toggle terminal',
-  'Toggle sidebar',
-  'Open Settings',
+  '打开项目',
+  '我的工作',
+  '定时任务',
+  '能力',
+  '浏览器',
+  '终端',
+  '侧栏',
+  '设置',
 ]
 
 describe.each<HarnessId>(['prime', 'pi'])('command palette for %s', (harness) => {
@@ -106,33 +106,33 @@ describe.each<HarnessId>(['prime', 'pi'])('command palette for %s', (harness) =>
     expect(options.map((option) => option.querySelector('strong')?.textContent)).toEqual(expectedOrder)
     expect(options[0].getAttribute('aria-selected')).toBe('true')
 
-    await search(input, 'scheduled')
+    await search(input, '定时')
     options = commandOptions(dialog)
-    expect(options.map((option) => option.querySelector('strong')?.textContent)).toEqual(['Open Scheduled'])
+    expect(options.map((option) => option.querySelector('strong')?.textContent)).toEqual(['定时任务'])
     expect(options[0].getAttribute('aria-selected')).toBe('true')
 
     await act(async () => {
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
     })
-    expect(document.body.querySelector('[role="dialog"][aria-label="Command palette"]')).toBeNull()
+    expect(document.body.querySelector('[role="dialog"][aria-label="命令面板"]')).toBeNull()
     await waitFor(() => [...document.body.querySelectorAll('h1')].find((heading) => heading.textContent === 'Scheduled'))
     expect(document.body.textContent).toContain(`Unattended ${HARNESS_SHORT_NAMES[harness]} work`)
 
     dialog = await openPalette()
-    const projects = commandOptions(dialog).find((option) => option.textContent?.includes('Open Projects'))!
+    const projects = commandOptions(dialog).find((option) => option.textContent?.includes('打开项目'))!
     await act(async () => { projects.click() })
     await waitFor(() => [...document.body.querySelectorAll('h1')].find((heading) => heading.textContent === '工作空间文件夹'))
 
     dialog = await openPalette()
     input = dialog.querySelector<HTMLInputElement>('[role="combobox"]')!
     await waitFor(() => document.activeElement === input ? input : null)
-    const scheduled = commandOptions(dialog).find((option) => option.textContent?.includes('Open Scheduled'))!
+    const scheduled = commandOptions(dialog).find((option) => option.textContent?.includes('定时任务'))!
     await act(async () => {
       scheduled.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
     })
     expect(scheduled.getAttribute('aria-selected')).toBe('true')
     await act(async () => { scheduled.click() })
-    expect(document.body.querySelector('[role="dialog"][aria-label="Command palette"]')).toBeNull()
+    expect(document.body.querySelector('[role="dialog"][aria-label="命令面板"]')).toBeNull()
     await waitFor(() => [...document.body.querySelectorAll('h1')].find((heading) => heading.textContent === 'Scheduled'))
     expect(document.body.textContent).toContain(`Unattended ${HARNESS_SHORT_NAMES[harness]} work`)
   })

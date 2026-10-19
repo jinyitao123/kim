@@ -68,14 +68,14 @@ describe('sidebar project context menu', () => {
     })
 
     expect([...container.querySelectorAll('.project-row__main')].map((button) => button.textContent)).toEqual(['Alpha', 'Zeta'])
-    await press(container.querySelector('[aria-label="Sort workspace folders"]')!)
-    const alphabetical = [...container.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].find((item) => item.textContent?.includes('Alphabetical'))
+    await press(container.querySelector('[aria-label="工作空间排序"]')!)
+    const alphabetical = [...container.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].find((item) => item.textContent?.includes('按字母顺序'))
     expect(alphabetical).toBeDefined()
     await press(alphabetical!)
     expect(onSetProjectSortMode).toHaveBeenCalledWith('alphabetical')
 
     await rightClick(container.querySelector('.project-row')!)
-    const pin = [...container.querySelectorAll('[aria-label^="Project options"] button')].find((button) => button.textContent?.includes('Pin workspace folder'))
+    const pin = [...container.querySelectorAll('[role="menu"][aria-label$="的选项"] button')].find((button) => button.textContent?.includes('置顶工作空间'))
     expect(pin).toBeDefined()
     await press(pin!)
     expect(onTogglePinProject).toHaveBeenCalledWith(projects[1])
@@ -92,7 +92,7 @@ describe('sidebar project context menu', () => {
       )
     })
 
-    await press(container.querySelector('[aria-label="Sort workspace folders"]')!)
+    await press(container.querySelector('[aria-label="工作空间排序"]')!)
     expect(container.querySelector('[role="menuitemradio"]')).not.toBeNull()
     await act(async () => {
       container.querySelector('.sidebar__primary button')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
@@ -111,7 +111,7 @@ describe('sidebar project context menu', () => {
       )
     })
     await rightClick(container.querySelector('.project-row')!)
-    expect([...container.querySelectorAll('[aria-label^="Project options"] button')].some((button) => button.textContent?.includes('Pin workspace folder'))).toBe(false)
+    expect([...container.querySelectorAll('[role="menu"][aria-label$="的选项"] button')].some((button) => button.textContent?.includes('置顶工作空间'))).toBe(false)
   })
 
   it('requires confirmation before downloading and restarting an available update', async () => {
@@ -127,16 +127,16 @@ describe('sidebar project context menu', () => {
     })
 
     const update = container.querySelector('.sidebar__footer .sidebar-update')
-    const settings = container.querySelector('.sidebar__footer button[title="Settings"]')
+    const settings = container.querySelector('.sidebar__footer button[title="设置"]')
     expect(update).not.toBeNull()
     expect(update?.nextElementSibling).toBe(settings)
-    expect(update?.textContent).toContain('Download 0.2.0')
+    expect(update?.textContent).toContain('下载更新 0.2.0')
     expect(update?.querySelector('.lucide-download')).not.toBeNull()
     await press(update!)
     expect(onUpdateAction).not.toHaveBeenCalled()
-    expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Download and Restart Kim?')
+    expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('下载并重启 Kim？')
 
-    const yes = [...document.body.querySelectorAll<HTMLButtonElement>('.modal__footer button')].find((button) => button.textContent === 'Yes')
+    const yes = [...document.body.querySelectorAll<HTMLButtonElement>('.modal__footer button')].find((button) => button.textContent === '好的')
     expect(yes).toBeDefined()
     await press(yes!)
     expect(onUpdateAction).toHaveBeenCalledOnce()
@@ -154,7 +154,7 @@ describe('sidebar project context menu', () => {
     })
 
     expect(container.querySelector('.sidebar__footer .sidebar-update')).toBeNull()
-    expect(container.querySelector('.sidebar__footer button[title="Settings"]')).not.toBeNull()
+    expect(container.querySelector('.sidebar__footer button[title="设置"]')).not.toBeNull()
   })
 
   it('copies the exact session UUID from the session context menu', async () => {
@@ -171,7 +171,7 @@ describe('sidebar project context menu', () => {
     })
 
     await rightClick(container.querySelector('.session-row')!)
-    const copy = [...container.querySelectorAll('[aria-label="Session options"] button')].find((button) => button.textContent?.includes('Copy session UUID'))
+    const copy = [...container.querySelectorAll('[aria-label="对话选项"] button')].find((button) => button.textContent?.includes('复制对话 ID'))
     expect(copy).toBeDefined()
     await press(copy!)
     expect(writeText).toHaveBeenCalledWith(session.id)
@@ -200,14 +200,14 @@ describe('sidebar project context menu', () => {
     })
 
     await rightClick(container.querySelector('.project-row')!)
-    const menu = container.querySelector('[aria-label="Project options for Project"]')
+    const menu = container.querySelector('[aria-label="Project 的选项"]')
     expect(menu).not.toBeNull()
-    const remove = [...menu!.querySelectorAll('button')].find((button) => button.textContent?.includes('Remove project'))
+    const remove = [...menu!.querySelectorAll('button')].find((button) => button.textContent?.includes('移除项目'))
     expect(remove).toBeDefined()
     await press(remove!)
 
     expect(document.body.querySelector('[role="dialog"]')).not.toBeNull()
-    expect(document.body.textContent).toContain('The folder and saved sessions will not be deleted.')
+    expect(document.body.textContent).toContain('文件夹和已保存的对话不会被删除。')
     await press(document.body.querySelector('.modal .button--danger')!)
     expect(onRemoveProject).toHaveBeenCalledOnce()
     expect(onRemoveProject).toHaveBeenCalledWith(project)
@@ -238,7 +238,7 @@ describe('sidebar project context menu', () => {
     expect(container.querySelector('.project-row__new-session .lucide-notebook-pen')).not.toBeNull()
     expect(container.querySelector('.sidebar__section-heading .lucide-folder-plus')).toBeNull()
     expect(container.querySelector('.sidebar__primary button[title="开始新工作 (⌘N)"]')).not.toBeNull()
-    expect(container.querySelector('[aria-label="New session in Project"][title="New session in Project"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="在 Project 中新建对话"][title="在 Project 中新建对话"]')).not.toBeNull()
     expect(container.querySelector('[aria-label="Add project"][title="Add project"]')).toBeNull()
   })
 
@@ -265,7 +265,7 @@ describe('sidebar project context menu', () => {
     })
 
     expect(container.querySelector('.sidebar__primary button[title="开始新工作 (Ctrl+N)"]')).not.toBeNull()
-    expect(container.querySelector('[aria-label="Hide sidebar (Ctrl+B)"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="收起侧栏 (Ctrl+B)"]')).not.toBeNull()
     expect(container.textContent).not.toContain('⌘')
   })
 })
@@ -293,20 +293,20 @@ describe('sidebar archive confirmation', () => {
       )
     })
 
-    const archive = container.querySelector('[aria-label="Archive Session"]')
+    const archive = container.querySelector('[aria-label="归档 Session"]')
     expect(archive).not.toBeNull()
-    expect(archive?.getAttribute('title')).toBe('Archive Session')
+    expect(archive?.getAttribute('title')).toBe('归档 Session')
     await press(archive!)
     expect(onArchiveSession).not.toHaveBeenCalled()
-    expect(container.querySelector('[aria-label="Confirm archive Session"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="确认归档 Session"]')).not.toBeNull()
 
     await act(async () => document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })))
-    expect(container.querySelector('[aria-label="Confirm archive Session"]')).toBeNull()
-    expect(container.querySelector('[aria-label="Archive Session"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="确认归档 Session"]')).toBeNull()
+    expect(container.querySelector('[aria-label="归档 Session"]')).not.toBeNull()
 
-    const restarted = container.querySelector('[aria-label="Archive Session"]')
+    const restarted = container.querySelector('[aria-label="归档 Session"]')
     await press(restarted!)
-    const confirm = container.querySelector('[aria-label="Confirm archive Session"]')
+    const confirm = container.querySelector('[aria-label="确认归档 Session"]')
     await press(confirm!)
     expect(onArchiveSession).toHaveBeenCalledOnce()
     expect(onArchiveSession).toHaveBeenCalledWith(session)
@@ -338,6 +338,6 @@ describe('sidebar session notifications', () => {
     const signature = sessionAttentionSignature(failedSession)!
     await act(async () => { root.render(<Sidebar {...props} clearedAttention={{ [failedSession.id]: signature }} />) })
     expect(container.querySelector('.session-row-wrap')?.classList.contains('has-attention')).toBe(false)
-    expect(container.querySelector('.session-status-mark--failed')?.getAttribute('title')).toBe('Failed — notification cleared')
+    expect(container.querySelector('.session-status-mark--failed')?.getAttribute('title')).toBe('失败 · 已清除提醒')
   })
 })

@@ -650,7 +650,7 @@ describe('sidebar brand switcher', () => {
     const onSelectHarness = vi.fn()
     await renderSidebar(onSelectHarness, 'pi', allDetectedMeta)
 
-    expect([...container.querySelectorAll('nav.sidebar__primary button span')].map((item) => item.textContent)).toEqual(['开始工作', '搜索', 'My tasks'])
+    expect([...container.querySelectorAll('nav.sidebar__primary button span')].map((item) => item.textContent)).toEqual(['开始工作', '搜索', '我的工作'])
     expect(container.textContent).not.toContain('Capabilities')
 
     await click(container.querySelector('.brand-switcher__trigger')!)
@@ -1003,9 +1003,9 @@ describe('harness settings surfaces', () => {
     expect(container.querySelector('h1')?.textContent).toBe('General')
     await act(async () => { root.render(renderSettings('agent')); await Promise.resolve() })
     expect(container.querySelector('h1')?.textContent).toBe('Harness')
-    expect(container.querySelector('.settings-nav .is-active')?.textContent).toContain('Harness')
+    expect(container.querySelector('.settings-nav .is-active')?.textContent).toContain('运行环境')
 
-    await click([...container.querySelectorAll<HTMLButtonElement>('.settings-nav button')].find((button) => button.textContent?.includes('General'))!)
+    await click([...container.querySelectorAll<HTMLButtonElement>('.settings-nav button')].find((button) => button.textContent?.includes('常规'))!)
     expect(container.querySelector('h1')?.textContent).toBe('General')
     await act(async () => { root.render(renderSettings('agent', 1)); await Promise.resolve() })
     expect(container.querySelector('h1')?.textContent).toBe('Harness')

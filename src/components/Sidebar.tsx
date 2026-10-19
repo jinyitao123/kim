@@ -65,7 +65,7 @@ export interface SidebarProps {
 }
 
 const statusLabel: Record<SessionRecord['status'], string> = {
-  idle: 'Idle', running: 'Running', waiting: 'Waiting for input', complete: 'Finished', failed: 'Failed', unknown: 'Unknown',
+  idle: '空闲', running: '进行中', waiting: '等你回复', complete: '已完成', failed: '失败', unknown: '状态未知',
 }
 
 export const SIDEBAR_SESSION_LIMIT = 7
@@ -110,7 +110,7 @@ export function boundedSidebarSessions(sessions: SessionRecord[]): SessionRecord
 
 
 function SessionStatusMark({ status, attention }: { status: SessionRecord['status']; attention: boolean }) {
-  const title = status === 'failed' && !attention ? 'Failed — notification cleared' : statusLabel[status]
+  const title = status === 'failed' && !attention ? '失败 · 已清除提醒' : statusLabel[status]
   if (status === 'running') return <span className="session-status-mark session-status-mark--running" title={statusLabel[status]}><LoaderCircle className="spin" size={13} /></span>
   if (status === 'waiting') return <span className="session-status-mark session-status-mark--waiting" title={statusLabel[status]}><MessageCircleQuestion size={12} /></span>
   if (status === 'complete') return <span className="session-status-mark session-status-mark--complete" title={statusLabel[status]}><CheckCircle2 size={12} /></span>
@@ -127,17 +127,17 @@ function HarnessMark({ harness, size }: { harness: HarnessId; size: number }) {
 function updateControlCopy(state: AppUpdateState): { label: string; title: string } {
   const version = state.version ? ` ${state.version}` : ''
   switch (state.phase) {
-    case 'checking': return { label: 'Checking for updates', title: 'Checking GitHub Releases for a new Kim version' }
-    case 'available': return { label: `Download${version}`, title: `Download and restart Kim${version}` }
+    case 'checking': return { label: '正在检查更新', title: '正在检查 Kim 新版本' }
+    case 'available': return { label: `下载更新${version}`, title: `下载并重启 Kim${version}` }
     case 'downloading': return {
-      label: state.percent === undefined ? `Downloading${version}` : `Downloading${version} · ${state.percent}%`,
-      title: `Downloading Kim${version}`,
+      label: state.percent === undefined ? `正在下载${version}` : `正在下载${version} · ${state.percent}%`,
+      title: `正在下载 Kim${version}`,
     }
-    case 'downloaded': return { label: `Restart for${version}`, title: `Restart Kim and install version${version}` }
-    case 'not-available': return { label: 'Kim is up to date', title: 'Check again for a new Kim release' }
-    case 'error': return { label: version ? `Retry update${version}` : 'Retry update', title: state.message ?? 'Update failed — try checking again' }
-    case 'unsupported': return { label: 'Automatic updates', title: state.message ?? 'Automatic updates are available in installed builds' }
-    default: return { label: 'Release updates', title: 'Check for a new Kim release' }
+    case 'downloaded': return { label: `重启以更新${version}`, title: `重启 Kim 并安装${version}` }
+    case 'not-available': return { label: 'Kim 已是最新版本', title: '再次检查 Kim 新版本' }
+    case 'error': return { label: version ? `重试更新${version}` : '重试更新', title: state.message ?? '更新失败，请重新检查' }
+    case 'unsupported': return { label: '自动更新', title: state.message ?? '安装版才支持自动更新' }
+    default: return { label: '检查更新', title: '检查 Kim 新版本' }
   }
 }
 
@@ -145,22 +145,22 @@ function updateControlCopy(state: AppUpdateState): { label: string; title: strin
 function updateAnnouncement(state: AppUpdateState): string {
   const version = state.version ? ` ${state.version}` : ''
   switch (state.phase) {
-    case 'available': return `Kim update${version} is available`
-    case 'downloading': return `Downloading Kim update${version}`
-    case 'downloaded': return `Kim update${version} is ready to install`
-    case 'error': return `Kim update failed. ${state.message ?? 'Try again.'}`
+    case 'available': return `Kim 有新版本${version}`
+    case 'downloading': return `正在下载 Kim 更新${version}`
+    case 'downloaded': return `Kim 更新${version} 已可安装`
+    case 'error': return `Kim 更新失败：${state.message ?? '请重试。'}`
     default: return ''
   }
 }
 
 function updateConfirmCopy(state: AppUpdateState): { title: string; body: string } {
   if (state.phase === 'downloaded') return {
-    title: 'Restart Kim to install the update?',
-    body: 'Kim will close and restart to finish installing the update.',
+    title: '重启 Kim 以安装更新？',
+    body: 'Kim 会关闭并重启以完成更新。',
   }
   return {
-    title: 'Download and Restart Kim?',
-    body: 'Kim will download the update, close, and restart when it is ready.',
+    title: '下载并重启 Kim？',
+    body: 'Kim 会下载更新，准备好后关闭并重启。',
   }
 }
 
@@ -181,7 +181,7 @@ async function copySessionUuid(id: string): Promise<void> {
   input.select()
   const copied = document.execCommand('copy')
   input.remove()
-  if (!copied) throw new Error('Copy is unavailable')
+  if (!copied) throw new Error('无法复制')
 }
 
 function SidebarView({ projects, sessions, activeProjectId, activeSessionId, activeView, activeHarness = 'pi', harnesses, clearedAttention = {}, enterpriseMode = false, pendingWorkCount, updateState = { phase: 'unsupported' }, onUpdateAction, onSelectHarness, onSelectProject, onSelectSession, onNavigate, onNewSession, onRemoveProject, projectSortMode = 'recent', onSetProjectSortMode = () => undefined, onTogglePinProject = () => undefined, onClose, onOpenPalette, onRenameSession, onArchiveSession, overlay = false, platform = 'darwin' }: SidebarProps) {
@@ -256,7 +256,7 @@ function SidebarView({ projects, sessions, activeProjectId, activeSessionId, act
   const visibleProjects = useMemo(() => sortProjects(projects.filter((project) => !normalized || project.name.toLowerCase().includes(normalized) || (sessionsByProject.get(project.id) ?? []).some((session) => `${session.title} ${session.preview ?? ''}`.toLowerCase().includes(normalized))), projectSortMode), [projects, sessionsByProject, normalized, projectSortMode])
 
   return (
-    <aside ref={sidebarRef} className="sidebar" aria-label="Project and session navigation" tabIndex={overlay ? -1 : undefined}>
+    <aside ref={sidebarRef} className="sidebar" aria-label="项目与对话" tabIndex={overlay ? -1 : undefined}>
       <div className="sidebar__titlebar drag-region">
         <div className="traffic-light-clearance" aria-hidden="true" />
         <div className="sidebar__brand brand-switcher no-drag">
@@ -270,11 +270,11 @@ function SidebarView({ projects, sessions, activeProjectId, activeSessionId, act
             onClick={() => setHarnessMenuOpen((open) => !open)}
           >
             <HarnessMark harness={activeHarness} size={24} />
-            <span className="brand-switcher__name"><strong>Weave</strong><small>Workbench</small></span>
+            <span className="brand-switcher__name"><strong>Kim</strong><small>{HARNESS_PRODUCT_NAMES[activeHarness]}</small></span>
             <ChevronDown size={12} aria-hidden="true" />
           </button>
           {harnessMenuOpen ? (
-            <div className="brand-switcher__menu" role="menu" aria-label="Harness">
+            <div className="brand-switcher__menu" role="menu" aria-label="内核">
               {HARNESS_SELECTOR_ORDER.filter((harness) => Boolean(harnesses?.[harness]?.path)).map((harness) => (
                   <button
                     type="button"
@@ -294,18 +294,18 @@ function SidebarView({ projects, sessions, activeProjectId, activeSessionId, act
         </div>
         <div className="sidebar__title-actions no-drag">
           <IconButton label={`开始新工作 (${newSessionShortcut})`} onClick={() => onNewSession()}><NotebookPen size={16} /></IconButton>
-          <IconButton label={`Hide sidebar (${sidebarShortcut})`} onClick={onClose}><PanelLeftClose size={16} /></IconButton>
+          <IconButton label={`收起侧栏 (${sidebarShortcut})`} onClick={onClose}><PanelLeftClose size={16} /></IconButton>
         </div>
       </div>
 
-      <nav className="sidebar__primary" aria-label="Primary">
+      <nav className="sidebar__primary" aria-label="主导航">
         <button type="button" title={`开始新工作 (${newSessionShortcut})`} onClick={() => onNewSession()}><NotebookPen size={15} /><span>开始工作</span><kbd>{newSessionShortcut}</kbd></button>
         <button type="button" title="搜索工作记录" onClick={() => { setSearchOpen((open) => !open); window.setTimeout(() => document.getElementById('session-search')?.focus(), 0) }} className={searchOpen ? 'is-active' : ''}><Search size={15} /><span>搜索</span></button>
         {searchOpen ? (
           <div className="sidebar-search">
             <Search size={13} />
             <input id="session-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="工作名称或内容" aria-label="搜索工作记录" />
-            {query ? <button type="button" title="Clear search" aria-label="Clear search" onClick={() => setQuery('')}>×</button> : null}
+            {query ? <button type="button" title="清除搜索" aria-label="清除搜索" onClick={() => setQuery('')}>×</button> : null}
           </div>
         ) : null}
         <button type="button" title={t('nav.activity')} className={activeView === 'activity' ? 'is-active' : ''} onClick={() => onNavigate('activity')}><Bell size={15} /><span>{t('nav.activity')}</span>{activityCount ? <span className="nav-count">{activityCount}</span> : null}</button>
@@ -324,7 +324,7 @@ function SidebarView({ projects, sessions, activeProjectId, activeSessionId, act
                 className={`project-row ${activeProjectId === project.id && activeView === 'session' ? 'is-selected' : ''}`}
                 onContextMenu={(event) => { event.preventDefault(); setProjectMenu(project.id) }}
               >
-                <button className="project-row__collapse" type="button" aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${project.name}`} title={`${isCollapsed ? 'Expand' : 'Collapse'} ${project.name}`} onClick={() => { setProjectMenu(null); setCollapsed((value) => ({ ...value, [project.id]: !isCollapsed })) }}>
+                <button className="project-row__collapse" type="button" aria-label={`${isCollapsed ? '展开' : '收起'} ${project.name}`} title={`${isCollapsed ? '展开' : '收起'} ${project.name}`} onClick={() => { setProjectMenu(null); setCollapsed((value) => ({ ...value, [project.id]: !isCollapsed })) }}>
                   {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
                 </button>
                 <button className="project-row__main" type="button" onClick={() => { setProjectMenu(null); onSelectProject(project) }} title={project.path}>
@@ -332,9 +332,9 @@ function SidebarView({ projects, sessions, activeProjectId, activeSessionId, act
                   <span>{project.name}</span>
                   {project.pinned ? <Pin className="project-row__pin" size={11} fill="currentColor" /> : null}
                 </button>
-                <IconButton size="small" className="project-row__new-session row-action" label={`New session in ${project.name}`} onClick={() => { setProjectMenu(null); onNewSession(project) }}><NotebookPen size={13} /></IconButton>
-                {running ? <span className="project-working" title="Agent working"><LoaderCircle className="spin" size={13} /></span> : null}
-                {projectMenu === project.id ? <div className="project-row__menu" role="menu" aria-label={`Project options for ${project.name}`}>{!project.inferred ? <button type="button" role="menuitem" onClick={() => { setProjectMenu(null); onTogglePinProject(project) }}><Pin size={12} /> {t(project.pinned ? 'projects.unpin' : 'projects.pin')}</button> : null}<button type="button" role="menuitem" onClick={() => { setProjectMenu(null); setRemoveTarget(project) }}><Trash2 size={12} /> Remove project</button></div> : null}
+                <IconButton size="small" className="project-row__new-session row-action" label={`在 ${project.name} 中新建对话`} onClick={() => { setProjectMenu(null); onNewSession(project) }}><NotebookPen size={13} /></IconButton>
+                {running ? <span className="project-working" title="正在处理"><LoaderCircle className="spin" size={13} /></span> : null}
+                {projectMenu === project.id ? <div className="project-row__menu" role="menu" aria-label={`${project.name} 的选项`}>{!project.inferred ? <button type="button" role="menuitem" onClick={() => { setProjectMenu(null); onTogglePinProject(project) }}><Pin size={12} /> {t(project.pinned ? 'projects.unpin' : 'projects.pin')}</button> : null}<button type="button" role="menuitem" onClick={() => { setProjectMenu(null); setRemoveTarget(project) }}><Trash2 size={12} /> 移除项目</button></div> : null}
               </div>
               {!isCollapsed ? (
                 <div className="session-list">
@@ -342,12 +342,12 @@ function SidebarView({ projects, sessions, activeProjectId, activeSessionId, act
                     <div key={session.id} className={`session-row-wrap session-row-wrap--${session.status} ${needsAttention(session) ? 'has-attention' : ''} ${activeSessionId === session.id && activeView === 'session' ? 'is-selected' : ''}`}>
                       <button type="button" title={session.title} className="session-row" onClick={() => { setSessionMenu(null); onSelectSession(session) }} onContextMenu={(event) => { event.preventDefault(); setSessionMenu(session.id) }}>
                         <SessionStatusMark status={session.status} attention={needsAttention(session)} />
-                        <span className="session-row__text"><span className="session-row__title">{session.title}</span><span className="session-row__meta">{session.status === 'running' ? 'Working' : session.status === 'waiting' ? 'Needs attention' : session.status === 'complete' ? 'Finished' : formatRelative(session.updatedAt)}</span></span>
+                        <span className="session-row__text"><span className="session-row__title">{session.title}</span><span className="session-row__meta">{session.status === 'running' ? '进行中' : session.status === 'waiting' ? '等你处理' : session.status === 'complete' ? '已完成' : formatRelative(session.updatedAt)}</span></span>
                       </button>
                       <IconButton
                         size="small"
                         className={`session-row__archive ${archiveTarget?.id === session.id ? 'is-confirming' : ''}`}
-                        label={archiveTarget?.id === session.id ? `Confirm archive ${session.title}` : `Archive ${session.title}`}
+                        label={archiveTarget?.id === session.id ? `确认归档 ${session.title}` : `归档 ${session.title}`}
                         data-archive-confirming={archiveTarget?.id === session.id}
                         onClick={() => {
                           setSessionMenu(null)
@@ -356,11 +356,11 @@ function SidebarView({ projects, sessions, activeProjectId, activeSessionId, act
                           void onArchiveSession(session)
                         }}
                       >{archiveTarget?.id === session.id ? <Check size={13} /> : <Archive size={13}/>}</IconButton>
-                      <IconButton size="small" className="session-row__more" label={`Session options for ${session.title}`} onClick={() => setSessionMenu((current) => current === session.id ? null : session.id)}><MoreHorizontal size={13}/></IconButton>
-                      {sessionMenu === session.id ? <div className="session-row__menu" aria-label="Session options"><button type="button" onClick={() => { void copySessionUuid(session.id); setSessionMenu(null) }}><Copy size={12}/> Copy session UUID</button><button type="button" onClick={() => { setRenameTarget(session); setRenameValue(session.title); setSessionMenu(null) }}><SquarePen size={12}/> Rename</button></div> : null}
+                      <IconButton size="small" className="session-row__more" label={`${session.title} 的选项`} onClick={() => setSessionMenu((current) => current === session.id ? null : session.id)}><MoreHorizontal size={13}/></IconButton>
+                      {sessionMenu === session.id ? <div className="session-row__menu" aria-label="对话选项"><button type="button" onClick={() => { void copySessionUuid(session.id); setSessionMenu(null) }}><Copy size={12}/> 复制对话 ID</button><button type="button" onClick={() => { setRenameTarget(session); setRenameValue(session.title); setSessionMenu(null) }}><SquarePen size={12}/> 重命名</button></div> : null}
                     </div>
                   ))}
-                  {projectSessions.length === 0 ? <button type="button" title={`New session in ${project.name}`} className="session-row session-row--empty" onClick={() => { setProjectMenu(null); onNewSession(project) }}><NotebookPen size={12} /> New session</button> : null}
+                  {projectSessions.length === 0 ? <button type="button" title={`在 ${project.name} 中新建对话`} className="session-row session-row--empty" onClick={() => { setProjectMenu(null); onNewSession(project) }}><NotebookPen size={12} /> 新建对话</button> : null}
                 </div>
               ) : null}
             </div>
@@ -369,7 +369,7 @@ function SidebarView({ projects, sessions, activeProjectId, activeSessionId, act
       </div>
 
       <div className="sidebar__footer">
-        <button type="button" title="Commands" onClick={onOpenPalette}><Search size={15} /><span>Commands</span><kbd>{commandsShortcut}</kbd></button>
+        <button type="button" title="命令" onClick={onOpenPalette}><Search size={15} /><span>命令</span><kbd>{commandsShortcut}</kbd></button>
         {updateVisible ? (
           <>
             <span className="sr-only" role="status" aria-live="polite">{updateAnnouncement(updateState)}</span>
@@ -388,9 +388,9 @@ function SidebarView({ projects, sessions, activeProjectId, activeSessionId, act
         ) : null}
         <button type="button" title={t('nav.settings')} className={activeView === 'settings' ? 'is-active' : ''} onClick={() => onNavigate('settings')}><Settings size={15} /><span>{t('nav.settings')}</span><kbd>{settingsShortcut}</kbd></button>
       </div>
-      {renameTarget ? <Modal title="Rename session" onClose={() => setRenameTarget(null)} footer={<><button type="button" className="button" onClick={() => setRenameTarget(null)}>Cancel</button><button type="button" className="button button--primary" disabled={!renameValue.trim()} onClick={() => { const target = renameTarget; const title = renameValue.trim(); setRenameTarget(null); void onRenameSession(target, title) }}>Rename</button></>}><label className="field"><span>Session name</span><input autoFocus value={renameValue} maxLength={200} onChange={(event) => setRenameValue(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && renameValue.trim()) { event.preventDefault(); const target = renameTarget; const title = renameValue.trim(); setRenameTarget(null); void onRenameSession(target, title) } }}/></label></Modal> : null}
-      {removeTarget ? <Modal title="Remove project" onClose={() => setRemoveTarget(null)} footer={<><button type="button" className="button" onClick={() => setRemoveTarget(null)}>Cancel</button><button type="button" className="button button--danger" onClick={() => { const target = removeTarget; setRemoveTarget(null); onRemoveProject(target) }}>Remove</button></>}><p>Remove “{removeTarget.name}” from {HARNESS_PRODUCT_NAMES[activeHarness]}? The folder and saved sessions will not be deleted.</p></Modal> : null}
-      {confirmUpdate ? <Modal title={updateConfirm.title} onClose={() => setConfirmUpdate(false)} footer={<><button type="button" className="button" onClick={() => setConfirmUpdate(false)}>No</button><button type="button" className="button button--primary" onClick={() => { setConfirmUpdate(false); void onUpdateAction?.() }}>Yes</button></>}><p>{updateConfirm.body}</p></Modal> : null}
+      {renameTarget ? <Modal title="重命名对话" onClose={() => setRenameTarget(null)} footer={<><button type="button" className="button" onClick={() => setRenameTarget(null)}>取消</button><button type="button" className="button button--primary" disabled={!renameValue.trim()} onClick={() => { const target = renameTarget; const title = renameValue.trim(); setRenameTarget(null); void onRenameSession(target, title) }}>重命名</button></>}><label className="field"><span>对话名称</span><input autoFocus value={renameValue} maxLength={200} onChange={(event) => setRenameValue(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && renameValue.trim()) { event.preventDefault(); const target = renameTarget; const title = renameValue.trim(); setRenameTarget(null); void onRenameSession(target, title) } }}/></label></Modal> : null}
+      {removeTarget ? <Modal title="移除项目" onClose={() => setRemoveTarget(null)} footer={<><button type="button" className="button" onClick={() => setRemoveTarget(null)}>取消</button><button type="button" className="button button--danger" onClick={() => { const target = removeTarget; setRemoveTarget(null); onRemoveProject(target) }}>移除</button></>}><p>从 {HARNESS_PRODUCT_NAMES[activeHarness]} 中移除「{removeTarget.name}」？文件夹和已保存的对话不会被删除。</p></Modal> : null}
+      {confirmUpdate ? <Modal title={updateConfirm.title} onClose={() => setConfirmUpdate(false)} footer={<><button type="button" className="button" onClick={() => setConfirmUpdate(false)}>暂不</button><button type="button" className="button button--primary" onClick={() => { setConfirmUpdate(false); void onUpdateAction?.() }}>好的</button></>}><p>{updateConfirm.body}</p></Modal> : null}
     </aside>
   )
 }

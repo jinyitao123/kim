@@ -24,11 +24,11 @@ export function formatSessionCost(usage: SessionUsage | undefined): string | nul
 
 /** Tooltip/aria text for the composer context dial: context tokens plus the session cost when known. */
 export function contextDialLabel(contextUsage: PrimeContextUsage | undefined, sessionUsage: SessionUsage | undefined): string {
-  if (!contextUsage || contextUsage.tokens === null) return 'Context usage unavailable until the next response'
+  if (!contextUsage || contextUsage.tokens === null) return '下一次回复后显示上下文用量'
   const label = `${contextUsage.tokens.toLocaleString('en-US')} / ${contextUsage.contextWindow.toLocaleString('en-US')} tokens`
   const cost = formatSessionCost(sessionUsage)
   if (cost === null) return label
-  return `${label} · ${cost === PRICING_UNAVAILABLE ? 'pricing unavailable' : `${cost} session cost`}`
+  return `${label} · ${cost === PRICING_UNAVAILABLE ? '价格未知' : `本对话花费 ${cost}`}`
 }
 
 export function formatSessionTokens(usage: SessionUsage | undefined): string | null {

@@ -28,12 +28,12 @@ describe('NoHarnessPrompt', () => {
     const onOpenHarnessSettings = vi.fn()
     await act(async () => root.render(<NoHarnessPrompt onClose={vi.fn()} onOpenHarnessSettings={onOpenHarnessSettings} />))
 
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('No Pi family harness detected')
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Pi or Prime Agent')
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('没有检测到可用的内核')
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Pi、Prime Agent')
     expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('OMP')
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('configure its executable path in Harness settings')
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('填写可执行文件路径')
 
-    const button = [...document.querySelectorAll<HTMLButtonElement>('button')].find((item) => item.textContent === 'Take me there')!
+    const button = [...document.querySelectorAll<HTMLButtonElement>('button')].find((item) => item.textContent === '去设置')!
     await act(async () => button.click())
     expect(onOpenHarnessSettings).toHaveBeenCalledTimes(1)
   })

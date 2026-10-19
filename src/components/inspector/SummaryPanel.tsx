@@ -74,14 +74,14 @@ export const SummaryPanel = memo(function SummaryPanel({ shortName = 'Prime', ru
     <div className="inspector-scroll scroll-area summary-panel">
       <EnterpriseScopeCards scopes={[...scopes].reverse()} states={runStates.views} onCancelWork={teamWork?.cancel} onRefresh={runStates.refresh} expandedRun={expandedRun} onSelectRun={setSelectedRun} onOpenWork={teamWork?.openWork} />
       {scopes.length ? <details className="summary-conversation"><summary>会话摘要<ChevronDown size={13} aria-hidden="true" /></summary>{conversationSummary}</details> : conversationSummary}
-      {automations.length || heartbeats.length ? <section className="summary-section"><h3>Automations</h3><div className="summary-automation-list">
+      {automations.length || heartbeats.length ? <section className="summary-section"><h3>定时任务</h3><div className="summary-automation-list">
         {automations.slice(0, 2).map((task) => <button type="button" key={task.id} onClick={() => onOpenAutomation(task.id)}>
-          <span className="summary-automation-icon"><CalendarClock size={14}/></span><span><strong>{task.title}</strong><small>{task.status}{task.nextRunAt ? ` · Next ${formatRelative(task.nextRunAt)}` : ''}</small></span>
+          <span className="summary-automation-icon"><CalendarClock size={14}/></span><span><strong>{task.title}</strong><small>{task.status}{task.nextRunAt ? ` · 下次 ${formatRelative(task.nextRunAt)}` : ''}</small></span>
         </button>)}
         {heartbeats.slice(0, Math.max(0, 2 - automations.length)).map((heartbeat) => <button type="button" key={heartbeat.id} onClick={() => onOpenAutomation(heartbeat.id)}>
-          <span className="summary-automation-icon is-heartbeat"><HeartPulse size={14}/></span><span><strong>{heartbeat.label ?? (heartbeat.source === 'heartbeat' ? 'Thread heartbeat' : 'Agent heartbeat')}</strong><small>{heartbeat.status}{heartbeat.nextRunAt ? ` · Next ${formatRelative(heartbeat.nextRunAt)}` : ''}</small></span>
+          <span className="summary-automation-icon is-heartbeat"><HeartPulse size={14}/></span><span><strong>{heartbeat.label ?? (heartbeat.source === 'heartbeat' ? '对话心跳' : '智能体心跳')}</strong><small>{heartbeat.status}{heartbeat.nextRunAt ? ` · 下次 ${formatRelative(heartbeat.nextRunAt)}` : ''}</small></span>
         </button>)}
-        {automations.length + heartbeats.length > 2 ? <button type="button" className="summary-automation-more" onClick={() => onOpenAutomation(automations[0]?.id ?? heartbeats[0]!.id)}>View all {automations.length + heartbeats.length} automations</button> : null}
+        {automations.length + heartbeats.length > 2 ? <button type="button" className="summary-automation-more" onClick={() => onOpenAutomation(automations[0]?.id ?? heartbeats[0]!.id)}>查看全部 {automations.length + heartbeats.length} 个定时任务</button> : null}
       </div></section> : null}
     </div>
   )

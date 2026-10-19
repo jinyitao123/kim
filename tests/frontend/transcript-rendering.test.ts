@@ -153,7 +153,7 @@ describe('transcript rendering', () => {
     expect(html).toContain('用时 1 秒')
     expect(html).not.toContain('Prior completed reasoning.')
     expect(html).toContain('transcript-active-placeholder')
-    expect(html).toContain('Prime is working')
+    expect(html).toContain('Prime 正在处理')
   })
 
   it.each([

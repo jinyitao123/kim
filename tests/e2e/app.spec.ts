@@ -57,7 +57,7 @@ async function launchHermeticElectron(options: Parameters<typeof electron.launch
 
 async function navigateFromCommandPalette(command: string): Promise<void> {
   await page.getByRole('button', { name: /Commands/ }).click()
-  const palette = page.getByRole('dialog', { name: 'Command palette' })
+  const palette = page.getByRole('dialog', { name: '命令面板' })
   await expect(palette).toBeVisible()
   await palette.getByRole('option', { name: new RegExp(`^Open ${command}\\b`) }).click()
   await expect(palette).toHaveCount(0)
@@ -845,12 +845,12 @@ test.describe('Prime Work desktop smoke', () => {
 
     await composer.fill('send this queued task now')
     await composer.press('Enter')
-    const queuedTray = page.getByRole('region', { name: 'Queued messages' })
+    const queuedTray = page.getByRole('region', { name: '待发送的消息' })
     await queuedTray.locator('.composer-queue__item').hover()
     await expect(queuedTray.locator('.composer-queue__actions')).toHaveCSS('opacity', '1')
     await expect(queuedTray.locator('.composer-queue__item')).toHaveCount(1)
-    const sendImmediately = queuedTray.getByRole('button', { name: /^Send queued message immediately:/ })
-    await expect(sendImmediately).toHaveAttribute('title', 'Send queued message immediately')
+    const sendImmediately = queuedTray.getByRole('button', { name: /^立即发送:/ })
+    await expect(sendImmediately).toHaveAttribute('title', '立即发送')
     await sendImmediately.click()
     await expect(queuedTray.locator('.composer-queue__item')).toHaveCount(0)
     const queuedSteerMarker = join(fixtureRoot, 'steer-args.json')
@@ -878,7 +878,7 @@ test.describe('Prime Work desktop smoke', () => {
 
     await composer.fill('barrier follow-up')
     await composer.press('Enter')
-    const queuedTray = page.getByRole('region', { name: 'Queued messages' })
+    const queuedTray = page.getByRole('region', { name: '待发送的消息' })
     await expect(queuedTray.locator('.composer-queue__item')).toHaveCount(1)
 
     writeFileSync(join(fixtureRoot, 'prompt-admission-barrier-release'), 'release')
@@ -926,9 +926,9 @@ test.describe('Prime Work desktop smoke', () => {
     const imagePath = join(fixtureRoot, 'picker.png')
     writeFileSync(imagePath, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'))
 
-    await page.getByRole('button', { name: 'Add context' }).click()
+    await page.getByRole('button', { name: '添加上下文' }).click()
     const fileChooser = page.waitForEvent('filechooser')
-    await page.getByRole('option', { name: /Add files/ }).click()
+    await page.getByRole('option', { name: /添加文件/ }).click()
     await (await fileChooser).setFiles(imagePath)
     await expect(page.locator('.composer-attachment').filter({ hasText: 'picker.png' })).toBeVisible()
     await expect(page.locator('.composer p[role="status"]')).toHaveText('1 file attached.')
@@ -946,7 +946,7 @@ test.describe('Prime Work desktop smoke', () => {
 
     const model = page.locator('.model-picker')
     const modelTrigger = model.locator('.model-picker__trigger')
-    const reasoning = page.locator('.select-control').filter({ has: page.getByRole('combobox', { name: 'Reasoning effort' }) })
+    const reasoning = page.locator('.select-control').filter({ has: page.getByRole('combobox', { name: '思考强度' }) })
     await expect(modelTrigger.locator('span')).toHaveCSS('display', 'block')
     await expect(reasoning.locator('.select-control__chevron')).toHaveCSS('display', 'none')
     await expect(reasoning.getByRole('combobox')).toHaveCSS('opacity', '1')
@@ -1118,7 +1118,7 @@ test.describe('Prime Work desktop smoke', () => {
     const primaryNavigation = page.getByRole('navigation', { name: 'Primary' })
     await expect(primaryNavigation).toContainText('开始工作')
     await expect(primaryNavigation).toContainText('搜索')
-    await expect(primaryNavigation).toContainText('My tasks')
+    await expect(primaryNavigation).toContainText('我的工作')
     await expect(primaryNavigation).not.toContainText('Scheduled')
     await expect(primaryNavigation).not.toContainText('Capabilities')
     await page.locator('.session-row__title').filter({ hasText: 'Pi hermetic fixture' }).click()
@@ -1143,9 +1143,9 @@ test.describe('Prime Work desktop smoke', () => {
   })
 
   test('closes realtime voice before switching harnesses', async () => {
-    await page.locator('.title-toolbar').getByRole('button', { name: 'Open realtime voice' }).click()
+    await page.locator('.title-toolbar').getByRole('button', { name: '打开实时语音' }).click()
     const voiceOrb = page.locator('.voice-orb')
-    await expect(voiceOrb.getByRole('button', { name: 'Mute realtime voice' })).toBeVisible()
+    await expect(voiceOrb.getByRole('button', { name: '静音' })).toBeVisible()
     await page.getByRole('button', { name: 'Kim — Prime Work' }).click()
     await page.getByRole('menuitemradio', { name: /Pi Work/ }).click()
     await expect(voiceOrb).toHaveCount(0)
@@ -1214,7 +1214,7 @@ test.describe('Prime Work desktop smoke', () => {
   })
 
   test('opens Harness settings from the no-harness recovery prompt', async () => {
-    await expect(page.getByRole('heading', { name: 'No Pi family harness detected' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '没有检测到可用的内核' })).toBeVisible()
     await expect(page.getByText('Install one to get started.', { exact: false })).toBeVisible()
     await page.getByRole('button', { name: 'Take me there' }).click()
     await expect(page.getByRole('heading', { name: 'Harness', exact: true, level: 1 })).toBeVisible()
@@ -1238,7 +1238,7 @@ test.describe('Prime Work desktop smoke', () => {
 
     const primaryRow = page.locator('.session-row-wrap').filter({ hasText: 'Primary workspace fixture' })
     await expect(primaryRow).toHaveClass(/has-attention/)
-    const activityCount = page.locator('.sidebar__primary button[title="My tasks"] .nav-count')
+    const activityCount = page.locator('.sidebar__primary button[title="我的工作"] .nav-count')
     await expect(activityCount).toHaveCount(0)
     await expect(titles.nth(0)).toHaveText('Hermetic desktop fixture')
     const attentionColor = await primaryRow.evaluate((node) => getComputedStyle(node).backgroundColor.match(/\d+(?:\.\d+)?/g)?.map(Number) ?? [])
@@ -1251,7 +1251,7 @@ test.describe('Prime Work desktop smoke', () => {
     await primaryRow.locator('.session-row').click()
     await expect(primaryRow).not.toHaveClass(/has-attention/)
     await expect(primaryRow).toHaveClass(/session-row-wrap--failed/)
-    await expect(failureMark).toHaveAttribute('title', 'Failed — notification cleared')
+    await expect(failureMark).toHaveAttribute('title', '失败 · 已清除提醒')
     await expect.poll(() => failureMark.locator('> span').evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe(activeFailureColor)
     await expect(activityCount).toHaveCount(0)
     appendFileSync(primaryFile, `${JSON.stringify({
@@ -1262,7 +1262,7 @@ test.describe('Prime Work desktop smoke', () => {
   })
 
   test('opens My Work from the primary navigation', async () => {
-    await page.getByRole('button', { name: 'My tasks', exact: true }).click()
+    await page.getByRole('button', { name: '我的工作', exact: true }).click()
     await expect(page.getByRole('heading', { name: '我的工作' })).toBeVisible()
     await expect(page.getByRole('tab', { name: /^待我处理/ })).toBeVisible()
     await expect(page.getByRole('tab', { name: /^我发起的工作/ })).toBeVisible()
@@ -1270,7 +1270,7 @@ test.describe('Prime Work desktop smoke', () => {
   })
 
   test('opens a parked original work from its normal row without issuing authorization on view', async () => {
-    await page.getByRole('button', { name: 'My tasks', exact: true }).click()
+    await page.getByRole('button', { name: '我的工作', exact: true }).click()
     await page.getByRole('tab', { name: /^我发起的工作/ }).click()
     await expect(page.locator('.work-card').getByText('合同处理', { exact: true })).toBeVisible()
     await expect(page.locator('.enterprise-work-page')).not.toContainText(parkedRunContext().source.run_id)
@@ -1296,7 +1296,7 @@ test.describe('Prime Work desktop smoke', () => {
 
     const primaryRow = page.locator('.session-row-wrap').filter({ hasText: 'Primary workspace fixture' })
     await expect(primaryRow).toHaveClass(/has-attention/)
-    const activityCount = page.locator('.sidebar__primary button[title="My tasks"] .nav-count')
+    const activityCount = page.locator('.sidebar__primary button[title="我的工作"] .nav-count')
     await expect(activityCount).toHaveCount(0)
 
     await primaryRow.getByTitle('Archive Primary workspace fixture').click()
@@ -1308,7 +1308,7 @@ test.describe('Prime Work desktop smoke', () => {
       return cleared['primary-session']
     })).toBeTruthy()
 
-    await page.getByRole('button', { name: 'My tasks', exact: true }).click()
+    await page.getByRole('button', { name: '我的工作', exact: true }).click()
     await expect(page.getByRole('heading', { name: '我的工作' })).toBeVisible()
     await expect(page.getByText('Primary workspace fixture', { exact: true })).toHaveCount(0)
   })
@@ -1344,7 +1344,7 @@ test.describe('Prime Work desktop smoke', () => {
   test('stops a dev server launched from the thread terminal when archived', async () => {
     const sessionRow = page.locator('.session-row-wrap').filter({ hasText: 'Hermetic desktop fixture' })
     await sessionRow.locator('.session-row').click()
-    await page.getByLabel(/Toggle terminal/).click()
+    await page.getByLabel(/终端/).click()
     const terminal = page.locator('.terminal-drawer:not([hidden])')
     const input = terminal.locator('.xterm-helper-textarea')
     await expect(input).toBeVisible()
@@ -1417,7 +1417,7 @@ test.describe('Prime Work desktop smoke', () => {
     await composer.fill('Queue this follow-up from Prime Work')
     await composer.press('Enter')
 
-    const queuedMessages = page.getByRole('region', { name: 'Queued messages' })
+    const queuedMessages = page.getByRole('region', { name: '待发送的消息' })
     await expect(queuedMessages.locator('.composer-queue__item')).toHaveCount(1)
     await expect(queuedMessages).toContainText('Queue this follow-up from Prime Work')
     expect(existsSync(join(fixtureRoot, 'follow-up-args.json'))).toBe(false)
@@ -1427,7 +1427,7 @@ test.describe('Prime Work desktop smoke', () => {
 
     await page.locator('.sidebar__footer button').filter({ hasText: 'Settings' }).click()
     await page.locator('.session-row-wrap').filter({ hasText: 'Hermetic desktop fixture' }).locator('.session-row').click()
-    await expect(page.getByRole('region', { name: 'Queued messages' })).toContainText('Queue this follow-up from Prime Work')
+    await expect(page.getByRole('region', { name: '待发送的消息' })).toContainText('Queue this follow-up from Prime Work')
   })
 
   test('reflects an external JSONL append without reselecting the live session', async () => {
@@ -1550,8 +1550,8 @@ test.describe('Prime Work desktop smoke', () => {
     })
     const selected = page.locator('.session-row-wrap.is-selected .session-row')
     await selected.click({ button: 'right' })
-    const sessionMenu = page.getByLabel('Session options')
-    await sessionMenu.getByRole('button', { name: 'Copy session UUID' }).click()
+    const sessionMenu = page.getByLabel('对话选项')
+    await sessionMenu.getByRole('button', { name: '复制对话 ID' }).click()
     await expect.poll(() => page.evaluate(() => (window as Window & { __copiedSessionId?: string }).__copiedSessionId)).toBe('fixture-session')
 
     const composer = page.getByRole('combobox', { name: 'Message Prime' })
@@ -1604,9 +1604,9 @@ test.describe('Prime Work desktop smoke', () => {
     await projectRow.click({ button: 'right' })
     const menu = page.getByRole('menu', { name: 'Project options for Multi-folder fixture' })
     await expect(menu).toBeVisible()
-    await menu.getByRole('menuitem', { name: 'Remove project' }).click()
+    await menu.getByRole('menuitem', { name: '移除项目' }).click()
 
-    const dialog = page.getByRole('dialog', { name: 'Remove project' })
+    const dialog = page.getByRole('dialog', { name: '移除项目' })
     await expect(dialog).toContainText('The folder and saved sessions will not be deleted.')
     await dialog.getByRole('button', { name: 'Remove', exact: true }).click()
     await expect(page.locator('.project-row')).toHaveCount(1)
@@ -1715,7 +1715,7 @@ test.describe('Prime Work desktop smoke', () => {
     await expect(page.getByRole('checkbox', { name: /Show reasoning summaries/ })).toBeChecked()
     await expect(page.getByRole('checkbox', { name: /Show tool calls/ })).toBeChecked()
     await page.keyboard.press('Meta+K')
-    await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: '命令面板' })).toBeVisible()
     await page.keyboard.press('Escape')
   })
 
@@ -1769,7 +1769,7 @@ test.describe('Prime Work desktop smoke', () => {
   })
 
   test('keeps transcript text from showing through the composer disclaimer', async () => {
-    await page.getByRole('button', { name: 'Toggle inspector' }).click()
+    await page.getByRole('button', { name: '右侧面板' }).click()
     await expect(page.locator('.composer-note')).toBeVisible()
     const colors = await page.locator('.composer-note').evaluate((node) => {
       const probe = document.createElement('div')
@@ -1851,7 +1851,7 @@ test.describe('Prime Work desktop smoke', () => {
     await expect(page.getByRole('button', { name: 'Close' })).toBeFocused()
     await expect(page.locator('.app-shell')).toHaveAttribute('inert')
     await page.keyboard.press('Meta+K')
-    await expect(page.getByRole('dialog', { name: 'Command palette' })).toHaveCount(0)
+    await expect(page.getByRole('dialog', { name: '命令面板' })).toHaveCount(0)
     await expect(dialog).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
@@ -1880,7 +1880,7 @@ test.describe('Prime Work desktop smoke', () => {
     const composer = page.getByRole('combobox', { name: 'Message Prime' })
     await composer.fill('/mcp')
     await expect(page.locator('.composer-menu').getByRole('option', { name: /\/mcp View MCP integrations/ })).toBeVisible()
-    await page.getByRole('button', { name: 'Send message' }).click()
+    await page.getByRole('button', { name: '发送' }).click()
 
     await expect(page.getByRole('heading', { name: /Extend/ })).toBeVisible()
     await expect(page.getByText('Manage packages, extensions, MCP servers, and reusable skills for this harness.')).toBeVisible()
@@ -2047,12 +2047,12 @@ test.describe('Prime Work desktop smoke', () => {
     // the sidebar closes. Normalize either valid state before testing the toggle.
     await page.waitForTimeout(250)
     if (await page.locator('.inspector').count()) {
-      await page.locator('.inspector').getByRole('button', { name: 'Close inspector' }).click()
+      await page.locator('.inspector').getByRole('button', { name: '关闭面板' }).click()
       await expect(page.locator('.inspector')).toHaveCount(0)
     }
     await expect(page.locator('.workbench')).not.toHaveAttribute('inert')
     await expect(page.locator('.title-toolbar')).not.toHaveAttribute('inert')
-    const inspectorToggle = page.getByRole('button', { name: 'Toggle inspector' })
+    const inspectorToggle = page.getByRole('button', { name: '右侧面板' })
     await inspectorToggle.focus()
     await inspectorToggle.press('Enter')
     await expect.poll(() => page.locator('.inspector').evaluate((node) => getComputedStyle(node).position)).toBe('fixed')
@@ -2068,7 +2068,7 @@ test.describe('Prime Work desktop smoke', () => {
     await page.getByRole('button', { name: /开始新工作/ }).click()
     await page.setViewportSize({ width: 1800, height: 900 })
     if (await page.locator('.inspector').count()) {
-      await page.locator('.inspector').getByRole('button', { name: 'Close inspector' }).click()
+      await page.locator('.inspector').getByRole('button', { name: '关闭面板' }).click()
       await expect(page.locator('.inspector')).toHaveCount(0)
     }
     const measure = () => page.evaluate(() => {
@@ -2118,7 +2118,7 @@ test.describe('Prime Work desktop smoke', () => {
     await expect(page.locator('.sidebar')).toHaveCount(0)
     await expect.poll(() => page.evaluate(async () => (await window.prime.settings.get()).sidebarOpen)).toBe(false)
 
-    const inspectorToggle = page.getByRole('button', { name: 'Toggle inspector' })
+    const inspectorToggle = page.getByRole('button', { name: '右侧面板' })
     await inspectorToggle.click()
     await expect(page.locator('.inspector')).toBeVisible()
     await expect(page.locator('.title-toolbar')).not.toHaveAttribute('inert')
@@ -2214,7 +2214,7 @@ test.describe('Prime Work desktop smoke', () => {
     await page.keyboard.press('ArrowRight')
     expect((await inspector.boundingBox())!.width).toBeLessThan(inspectorAfter!.width)
 
-    await page.getByLabel(/Toggle terminal/).click()
+    await page.getByLabel(/终端/).click()
     const drawer = page.locator('.terminal-drawer')
     const terminalHandle = page.getByRole('separator', { name: 'Resize terminal' })
     await expect(terminalHandle).toBeVisible()
@@ -2242,7 +2242,7 @@ test.describe('Prime Work desktop smoke', () => {
   })
 
   test('shuts down cleanly with an active terminal', async () => {
-    await page.getByLabel(/Toggle terminal/).click()
+    await page.getByLabel(/终端/).click()
     const drawer = page.locator('.terminal-drawer:not([hidden])')
     const input = drawer.locator('.xterm-helper-textarea')
     await expect(input).toBeVisible()
@@ -2254,7 +2254,7 @@ test.describe('Prime Work desktop smoke', () => {
   })
 
   test('restores each session terminal without leaking it into another session', async () => {
-    await page.getByLabel(/Toggle terminal/).click()
+    await page.getByLabel(/终端/).click()
     const visibleDrawer = page.locator('.terminal-drawer:not([hidden])')
     const input = visibleDrawer.locator('.xterm-helper-textarea')
     await expect(input).toBeVisible()
@@ -2265,7 +2265,7 @@ test.describe('Prime Work desktop smoke', () => {
 
     await page.locator('.session-row').filter({ hasText: 'Primary workspace fixture' }).click()
     await expect(page.locator('.terminal-drawer:not([hidden])')).toHaveCount(0)
-    await page.getByLabel(/Toggle terminal/).click()
+    await page.getByLabel(/终端/).click()
     const primaryDrawer = page.locator('.terminal-drawer:not([hidden])')
     const primaryInput = primaryDrawer.locator('.xterm-helper-textarea')
     await expect(primaryInput).toBeVisible()
@@ -2293,7 +2293,7 @@ test.describe('Prime Work desktop smoke', () => {
     })
     expect(project).not.toBeNull()
     await page.getByRole('tab', { name: 'Summary' }).click()
-    await page.getByLabel(/Toggle terminal/).click()
+    await page.getByLabel(/终端/).click()
     await expect(page.locator('.terminal-drawer .xterm')).toBeVisible()
     await expect(page.locator('.terminal-live-dot.is-connected')).toBeVisible()
     const firstTerminalLine = () => page.locator('.terminal-surface:not([hidden]) .xterm-rows').evaluate((rows) =>
@@ -2321,7 +2321,7 @@ test.describe('Prime Work desktop smoke', () => {
 
     await page.locator('.session-row').filter({ hasText: 'Primary workspace fixture' }).click()
     await expect(page.locator('.terminal-drawer:not([hidden])')).toHaveCount(0)
-    await page.getByLabel(/Toggle terminal/).click()
+    await page.getByLabel(/终端/).click()
     await expect(page.getByRole('tablist', { name: 'Terminal tabs' }).getByRole('tab')).toHaveCount(1)
     await expect(page.locator('.terminal-surface:not([hidden]) .xterm-rows')).not.toContainText(/first-terminal|second-terminal/)
     await expect(page.getByLabel(/Split terminal/)).toHaveCount(0)
@@ -2360,7 +2360,7 @@ test.describe('Prime Work desktop smoke', () => {
 
   test('attaches and removes active terminal selection context', async () => {
     await page.getByRole('tab', { name: 'Summary' }).click()
-    await page.getByLabel(/Toggle terminal/).click()
+    await page.getByLabel(/终端/).click()
     const input = page.locator('.terminal-surface:not([hidden]) .xterm-helper-textarea')
     await input.click()
     await page.keyboard.type("printf 'terminal-selection-marker\\n'")

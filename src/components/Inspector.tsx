@@ -50,7 +50,7 @@ export interface InspectorProps {
   overlay?: boolean
 }
 
-const tabs: Array<{ id: InspectorTab; label: string }> = [{ id: 'summary', label: 'Summary' }, { id: 'changes', label: 'Changes' }, { id: 'browser', label: 'Browser' }, { id: 'files', label: 'Files' }]
+const tabs: Array<{ id: InspectorTab; label: string }> = [{ id: 'summary', label: '摘要' }, { id: 'changes', label: '改动' }, { id: 'browser', label: '浏览器' }, { id: 'files', label: '文件' }]
 
 /** Memoized so streaming transcript updates (which this component no longer consumes outside the Summary tab) do not re-render the inspector shell. */
 export const Inspector = memo(function Inspector({ teamWork, activeTab, onTabChange, onClose, agentName, shortName, project, cwd, runtime, messages, git, automations, heartbeats, onOpenAutomation, browserHome, browserNavigationRequest, onBrowserNavigationRequestHandled, browserAnnotations, agentBrowserTabs, activeAgentTabId, agentPreviewSelected, onSelectAgentTab, onCloseAgentTab, onShowBrowserPreview, onAgentSlotRect, agentSessionKey, onPreviewContext, previewPointerEvent, onNavigateAgentTab, onRefreshGit, onOpenExternal, onRevealPath, onGrantProject, overlay = false, platform = 'darwin' }: InspectorProps) {
@@ -66,12 +66,12 @@ export const Inspector = memo(function Inspector({ teamWork, activeTab, onTabCha
     onTabChange(tab.id)
     requestAnimationFrame(() => document.getElementById(`inspector-tab-${tab.id}`)?.focus())
   }
-  return <aside ref={inspectorRef} className="inspector" aria-label="Session inspector" tabIndex={overlay ? -1 : undefined}>
+  return <aside ref={inspectorRef} className="inspector" aria-label="对话面板" tabIndex={overlay ? -1 : undefined}>
     <div className="inspector__tabs">
-      <div className="inspector__tab-track" role="tablist" aria-label="Inspector views">
+      <div className="inspector__tab-track" role="tablist" aria-label="面板视图">
         {tabs.map((tab, index) => <button id={`inspector-tab-${tab.id}`} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls={`inspector-panel-${tab.id}`} tabIndex={activeTab === tab.id ? 0 : -1} className={activeTab === tab.id ? 'is-active' : ''} key={tab.id} onKeyDown={(event) => { if (['ArrowRight','ArrowLeft','Home','End'].includes(event.key)) { event.preventDefault(); moveTab(index, event.key) } }} onClick={() => onTabChange(tab.id)}>{tab.label}{tab.id === 'changes' && git.files.length ? <span>{git.files.length}</span> : null}</button>)}
       </div>
-      <IconButton label="Close inspector" onClick={onClose}><PanelRightClose size={15}/></IconButton>
+      <IconButton label="关闭面板" onClick={onClose}><PanelRightClose size={15}/></IconButton>
     </div>
     <div id={`inspector-panel-${activeTab}`} className="inspector__body" role="tabpanel" aria-labelledby={`inspector-tab-${activeTab}`} tabIndex={0}>
       {activeTab === 'summary' ? <SummaryPanel key={`${teamWork?.accountScope ?? ""}:${teamWork?.sessionKey ?? ""}`} teamWork={teamWork} agentName={agentName} shortName={shortName} project={project} runtime={runtime} messages={messages} git={git} automations={automations} heartbeats={heartbeats} onOpenAutomation={onOpenAutomation}/> : null}

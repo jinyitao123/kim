@@ -58,7 +58,7 @@ export type ResolvedLocale = 'en' | 'zh-CN'
 
 const simplifiedChineseCatalog: Partial<Record<MessageKey, Message>> = {
   'nav.projects': '工作空间文件夹',
-  'nav.activity': '我的待办',
+  'nav.activity': '我的工作',
   'nav.scheduled': '定时任务',
   'nav.capabilities': '功能',
   'nav.settings': '设置',
@@ -104,19 +104,10 @@ const simplifiedChineseCatalog: Partial<Record<MessageKey, Message>> = {
   'appearance.motion.description': '尽量减少面板过渡和动态状态指示。',
 }
 
-function browserLanguages(): readonly string[] {
-  if (typeof navigator === 'undefined') return []
-  return navigator.languages.length ? navigator.languages : [navigator.language]
-}
 
-export function resolveLocale(preference: LocalePreference, languages: readonly string[] = browserLanguages()): ResolvedLocale {
-  if (preference !== 'system') return preference
-  for (const language of languages) {
-    const normalized = language.toLowerCase()
-    if (normalized === 'en' || normalized.startsWith('en-')) return 'en'
-    if (normalized === 'zh' || normalized === 'zh-cn' || normalized === 'zh-sg' || normalized === 'zh-hans' || normalized.startsWith('zh-hans-')) return 'zh-CN'
-  }
-  return 'en'
+/** Kim is Chinese first: following the system means Simplified Chinese; English is an explicit choice. */
+export function resolveLocale(preference: LocalePreference): ResolvedLocale {
+  return preference === 'system' ? 'zh-CN' : preference
 }
 
 export function translate(locale: ResolvedLocale, key: MessageKey, values: MessageValues = {}): string {
@@ -133,7 +124,7 @@ interface I18nContextValue {
   t(key: MessageKey, values?: MessageValues): string
 }
 
-const I18nContext = createContext<I18nContextValue>({ locale: 'en', t: (key, values) => translate('en', key, values) })
+const I18nContext = createContext<I18nContextValue>({ locale: 'zh-CN', t: (key, values) => translate('zh-CN', key, values) })
 
 export function I18nProvider({ preference, children }: { preference: LocalePreference; children: ReactNode }) {
   const locale = resolveLocale(preference)

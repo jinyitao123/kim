@@ -72,7 +72,7 @@ const renderApp = async () => {
 }
 
 const openChangesTab = async () => {
-  const changesTab = [...container.querySelectorAll<HTMLButtonElement>('.inspector__tabs button')].find((button) => button.textContent?.startsWith('Changes'))
+  const changesTab = [...container.querySelectorAll<HTMLButtonElement>('.inspector__tabs button')].find((button) => button.textContent?.startsWith('改动'))
   expect(changesTab).toBeDefined()
   await act(async () => { changesTab?.click() })
   expect(container.querySelector('#inspector-panel-changes')).not.toBeNull()

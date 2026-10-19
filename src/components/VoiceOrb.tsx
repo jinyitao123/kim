@@ -44,13 +44,13 @@ function boundedErrorField(value: unknown): string {
 }
 
 function realtimeErrorMessage(message: Record<string, unknown>): string {
-  if (!message.error || typeof message.error !== 'object' || Array.isArray(message.error)) return 'The realtime voice session reported an error.'
+  if (!message.error || typeof message.error !== 'object' || Array.isArray(message.error)) return '实时语音出错了。'
   const error = message.error as Record<string, unknown>
   const detail = boundedErrorField(error.message)
   const code = boundedErrorField(error.code)
   const param = boundedErrorField(error.param)
   const eventId = boundedErrorField(error.event_id)
-  if (!detail) return 'The realtime voice session reported an error.'
+  if (!detail) return '实时语音出错了。'
   return `Realtime error${code ? ` (${code})` : ''}: ${detail}${param ? ` [${param}]` : ''}${eventId ? ` [event ${eventId}]` : ''}`
 }
 
@@ -197,7 +197,7 @@ export function VoiceOrb({ voice, harness, onClose, onTaskStarted }: VoiceOrbPro
         await peer.setRemoteDescription({ type: 'answer', sdp: answer })
       } catch (failure) {
         if (!active) return
-        setError(failure instanceof Error ? failure.message : 'Could not start realtime voice.')
+        setError(failure instanceof Error ? failure.message : '无法启动实时语音。')
         setOrbState('error')
       }
     })()
@@ -237,24 +237,24 @@ export function VoiceOrb({ voice, harness, onClose, onTaskStarted }: VoiceOrbPro
     localStorage.setItem('prime-work:voice-orb-position', JSON.stringify(position))
   }
 
-  const status = muted ? 'Muted' : orbState === 'connecting' ? 'Connecting' : orbState === 'user-speaking' ? 'Listening to you' : orbState === 'thinking' ? 'Thinking' : orbState === 'agent-speaking' ? 'Speaking' : orbState === 'error' ? 'Voice unavailable' : 'Listening'
+  const status = muted ? '已静音' : orbState === 'connecting' ? '正在连接' : orbState === 'user-speaking' ? '正在听你说' : orbState === 'thinking' ? '思考中' : orbState === 'agent-speaking' ? '正在说' : orbState === 'error' ? '语音不可用' : '在听'
   const receipt = taskReceipt ? <div className="voice-orb__receipt" role="status">
-    <strong>Task started</strong>
+    <strong>任务已开始</strong>
     <span>{taskReceipt.projectName} · {HARNESS_SHORT_NAMES[taskReceipt.harness]}</span>
-    <small>{taskOpened ? 'Opened in the sidebar' : 'Opening task…'}</small>
+    <small>{taskOpened ? '已在侧栏打开' : '正在打开任务…'}</small>
   </div> : null
   return (
     <>
       {/* biome-ignore lint/a11y/useMediaCaption: Live assistant audio has no static caption track; status remains available as text. */}
       <audio ref={audioRef} autoPlay className="voice-session__audio" />
-      <aside className={`voice-orb voice-orb--${orbState} ${muted ? 'is-muted' : ''}`} style={{ '--orb-x': `${position.x}px`, '--orb-y': `${position.y}px` } as CSSProperties} aria-label="Realtime voice session">
+      <aside className={`voice-orb voice-orb--${orbState} ${muted ? 'is-muted' : ''}`} style={{ '--orb-x': `${position.x}px`, '--orb-y': `${position.y}px` } as CSSProperties} aria-label="实时语音">
         <div className="voice-orb__drag" onPointerDown={beginDrag} onPointerMove={drag} onPointerUp={endDrag} onPointerCancel={endDrag}>
           <div className="voice-orb__halo" aria-hidden="true" />
           <div className="voice-orb__core" aria-hidden="true"><i /><i /><i /></div>
           <span className="voice-orb__status">{status}</span>
           <div className="voice-orb__controls">
-            <button type="button" aria-label={muted ? 'Unmute realtime voice' : 'Mute realtime voice'} onClick={toggleMute}>{muted ? <MicOff size={15} /> : <Mic size={15} />}</button>
-            <button type="button" aria-label="Close realtime voice" onClick={onClose}><X size={16} /></button>
+            <button type="button" aria-label={muted ? '取消静音' : '静音'} onClick={toggleMute}>{muted ? <MicOff size={15} /> : <Mic size={15} />}</button>
+            <button type="button" aria-label="关闭实时语音" onClick={onClose}><X size={16} /></button>
           </div>
         </div>
         {error ? <p role="alert">{error}</p> : null}

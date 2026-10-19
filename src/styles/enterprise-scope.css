@@ -119,3 +119,23 @@
   .enterprise-scope-card, .enterprise-scope-card *, .enterprise-scope-card *::before, .enterprise-scope-card *::after { animation: none !important; transition: none !important; }
   .enterprise-scope-card.is-animating .enterprise-scope-track span { opacity: .35; transform: none; }
 }
+
+/* Team results returned to the conversation that handed the work over. */
+.team-result-cards { display: flex; flex-direction: column; gap: 14px; margin: 0 0 26px; }
+.team-result-card { --result-accent: var(--text-secondary); display: flex; flex-direction: column; gap: 10px; padding: 0 0 14px; border-bottom: 1px solid var(--border); }
+.team-result-card.is-succeeded { --result-accent: var(--success); }
+.team-result-card.is-needs_input, .team-result-card.is-parked { --result-accent: var(--warning); }
+.team-result-card.is-failed, .team-result-card.is-abandoned { --result-accent: var(--danger); }
+.team-result-card__divider { display: flex; align-items: center; gap: 10px; color: var(--text-tertiary); font-size: 11.5px; }
+.team-result-card__divider::before, .team-result-card__divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.team-result-card header { display: flex; align-items: center; gap: 10px; }
+.team-result-card header strong { display: block; color: var(--result-accent); font-size: 13.5px; font-weight: 600; }
+.team-result-card header small { color: var(--text-tertiary); font-size: 11.5px; }
+.team-result-card__icon { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: 50%; color: var(--result-accent); background: color-mix(in srgb, var(--result-accent) 12%, transparent); }
+.team-result-card__body { padding: 11px 13px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-raised); }
+.team-result-card__body h4 { margin: 0 0 4px; font-size: 12.5px; font-weight: 600; }
+.team-result-card__body p { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+.team-result-card__body ul { margin: 8px 0 0; padding-left: 18px; color: var(--text-secondary); font-size: 12.5px; }
+.team-result-card__note { margin: 0; color: var(--text-secondary); font-size: 12.5px; }
+.team-result-card footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; color: var(--text-tertiary); font-size: 11.5px; }
+.team-result-card footer .button { display: inline-flex; align-items: center; gap: 5px; }

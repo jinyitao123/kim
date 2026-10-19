@@ -2,21 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { resolveLocale, translate } from '../../src/lib/i18n'
 
 describe('i18n', () => {
-  it('detects Simplified Chinese system locales without treating Traditional Chinese as Simplified', () => {
-    expect(resolveLocale('system', ['zh-CN'])).toBe('zh-CN')
-    expect(resolveLocale('system', ['zh-Hans-US'])).toBe('zh-CN')
-    expect(resolveLocale('system', ['zh-TW', 'en-US'])).toBe('en')
-    expect(resolveLocale('system', ['fr-FR', 'zh-SG'])).toBe('zh-CN')
-  })
-
-  it('uses the first supported system locale in preference order', () => {
-    expect(resolveLocale('system', ['en-US', 'bg-US', 'zh-Hans-US'])).toBe('en')
-    expect(resolveLocale('system', ['zh-Hans-US', 'en-US'])).toBe('zh-CN')
-  })
-
-  it('honors an explicit locale preference over the system locale', () => {
-    expect(resolveLocale('en', ['zh-CN'])).toBe('en')
-    expect(resolveLocale('zh-CN', ['en-US'])).toBe('zh-CN')
+  it('follows the system as Simplified Chinese and honors an explicit choice', () => {
+    expect(resolveLocale('system')).toBe('zh-CN')
+    expect(resolveLocale('en')).toBe('en')
+    expect(resolveLocale('zh-CN')).toBe('zh-CN')
   })
 
   it('interpolates values, selects plural forms, and falls back to English', () => {
