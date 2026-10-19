@@ -1,5 +1,5 @@
 /**
- * GooeyPi in-app browser control.
+ * Kim in-app browser control.
  *
  * Loaded by Pi Work via --extension when the desktop app starts a runtime.
  * Talks only to the app's loopback capability broker; the URL and bearer
@@ -115,7 +115,7 @@ function bridgeFrom(env: Record<string, string | undefined>): Bridge { return { 
 interface BridgeResult { ok: boolean; result?: unknown; error?: string }
 
 async function call(bridge: Bridge, method: string, params: Record<string, unknown>): Promise<Record<string, unknown>> {
-  if (!bridge.url || !bridge.token) throw new Error('GooeyPi browser control is not available in this runtime')
+  if (!bridge.url || !bridge.token) throw new Error('Kim browser control is not available in this runtime')
   const cleaned: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== null) cleaned[key] = value
   let response: Response
@@ -126,7 +126,7 @@ async function call(bridge: Bridge, method: string, params: Record<string, unkno
       body: JSON.stringify({ method, params: cleaned }),
     })
   } catch (error) {
-    throw new Error(`GooeyPi browser is not reachable: ${String(error)}`)
+    throw new Error(`Kim browser is not reachable: ${String(error)}`)
   }
   const body = (await response.json()) as BridgeResult
   if (!body.ok) throw new Error(body.error || `Browser call failed with status ${response.status}`)

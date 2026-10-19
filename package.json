@@ -149,7 +149,7 @@
     },
     "linux": {
       "category": "Development",
-      "synopsis": "The desktop workspace for Weave teams and Forge business applications",
+      "synopsis": "Kim, a desktop workspace for Weave agent teams",
       "syncDesktopName": true,
       "target": [
         "AppImage",

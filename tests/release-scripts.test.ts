@@ -131,7 +131,7 @@ function writeMacReleaseFixture(directory: string, { omit }: { omit?: string } =
     const artifactDirectory = join(inputDirectory, `artifact-${index}`)
     mkdirSync(artifactDirectory, { recursive: true })
     const content = name.endsWith('.yml')
-      ? 'version: 0.2.0\nfiles:\n  - url: Weave Workbench-0.2.0-x64.zip\n    sha512: x64-digest\n    size: 42\npath: Weave Workbench-0.2.0-x64.zip\nsha512: x64-digest\n'
+      ? 'version: 0.2.0\nfiles:\n  - url: Kim-0.2.0-x64.zip\n    sha512: x64-digest\n    size: 42\npath: Kim-0.2.0-x64.zip\nsha512: x64-digest\n'
       : `asset ${index}`
     writeFileSync(join(artifactDirectory, name), content)
   }
@@ -235,7 +235,7 @@ describe('release preflight', () => {
     expect(() => assertBooleanEntitlement(`[Key] ${entitlement}\n[Value]\n[Bool] true`, entitlement, 'fixture')).not.toThrow()
     expect(() => assertBooleanEntitlement(`<key>${entitlement}</key><false/>`, entitlement, 'fixture')).toThrow(/missing required true entitlement/)
 
-    const app = '/tmp/Weave Workbench.app'
+    const app = '/tmp/Kim.app'
     const plist = `${app}/Contents/Info.plist`
     const expectedAppId = (
       JSON.parse(readFileSync('package.json', 'utf8')) as {
@@ -250,7 +250,7 @@ describe('release preflight', () => {
 
   test('strictly checks QA signatures without treating packaging as business acceptance', async () => {
     const { QA_PACKAGE_SCOPE_NOTICE, verifyCodeSignatureIfPresent } = await import('../scripts/release/verify-package.mjs')
-    const app = '/tmp/Weave Workbench.app'
+    const app = '/tmp/Kim.app'
     expect(readFileSync('CONTRIBUTING.md', 'utf8')).toContain('unsigned, unnotarized local-QA artifacts')
     expect(QA_PACKAGE_SCOPE_NOTICE).toContain('engineering-only')
     expect(QA_PACKAGE_SCOPE_NOTICE).toContain('Package checks do not establish employee handoff or business acceptance')
@@ -278,7 +278,7 @@ describe('release preflight', () => {
 
     const brokenAfterModification = vi
       .fn()
-      .mockReturnValueOnce('Identifier=com.inocube.weave-workbench')
+      .mockReturnValueOnce('Identifier=com.inocube.kim')
       .mockImplementationOnce(() => {
         throw new Error('code signature invalid after Info.plist modification')
       })
@@ -1104,7 +1104,7 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
     expect(workflow).toContain('gh release create "$RELEASE_TAG" release-assets/*')
     expect(workflow).toContain('gh release upload "$RELEASE_TAG" release-assets/* --clobber')
     expect(workflow).toContain('gh release edit "$RELEASE_TAG" --verify-tag --draft=false --latest')
-    expect(workflow).toContain('--title "Weave Workbench ${RELEASE_TAG#v}"')
+    expect(workflow).toContain('--title "Kim ${RELEASE_TAG#v}"')
     expect(workflow).toContain('is already published and will not be replaced')
     expect(workflow).toContain('--verify-tag')
     expect(workflow).toContain('--fail-on-no-commits')
@@ -1203,30 +1203,30 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
 describe('GitHub Release publication', () => {
   test('selects an exact enabled platform set', () => {
     expect(parseReleasePlatforms('mac,linux')).toEqual(['mac', 'linux'])
-    expect(expectedGitHubReleaseAssets('0.2.0', ['mac', 'linux'])).not.toContain('Weave Workbench-0.2.0-win-x64.exe')
+    expect(expectedGitHubReleaseAssets('0.2.0', ['mac', 'linux'])).not.toContain('Kim-0.2.0-win-x64.exe')
     expect(expectedGitHubReleaseAssets('0.2.0', ['mac'])).toEqual([
-      'Weave Workbench-0.2.0-arm64.zip',
-      'Weave Workbench-0.2.0-intel-chip.dmg',
-      'Weave Workbench-0.2.0-m-chip.dmg',
-      'Weave Workbench-0.2.0-x64.zip',
+      'Kim-0.2.0-arm64.zip',
+      'Kim-0.2.0-intel-chip.dmg',
+      'Kim-0.2.0-m-chip.dmg',
+      'Kim-0.2.0-x64.zip',
       'latest-mac.yml',
     ])
     expect(expectedDownloadedReleaseAssets('0.2.0', ['mac'])).toEqual([
-      'Weave Workbench-0.2.0-arm64.zip',
-      'Weave Workbench-0.2.0-x64.dmg',
-      'Weave Workbench-0.2.0-arm64.dmg',
-      'Weave Workbench-0.2.0-x64.zip',
+      'Kim-0.2.0-arm64.zip',
+      'Kim-0.2.0-x64.dmg',
+      'Kim-0.2.0-arm64.dmg',
+      'Kim-0.2.0-x64.zip',
       'latest-mac.yml',
     ])
     expect(expectedGitHubReleaseAssets('0.2.0', ['linux'])).toEqual([
-      'Weave Workbench-0.2.0-linux-aarch64.pacman',
-      'Weave Workbench-0.2.0-linux-aarch64.rpm',
-      'Weave Workbench-0.2.0-linux-amd64.deb',
-      'Weave Workbench-0.2.0-linux-arm64.AppImage',
-      'Weave Workbench-0.2.0-linux-arm64.deb',
-      'Weave Workbench-0.2.0-linux-x64.pacman',
-      'Weave Workbench-0.2.0-linux-x86_64.AppImage',
-      'Weave Workbench-0.2.0-linux-x86_64.rpm',
+      'Kim-0.2.0-linux-aarch64.pacman',
+      'Kim-0.2.0-linux-aarch64.rpm',
+      'Kim-0.2.0-linux-amd64.deb',
+      'Kim-0.2.0-linux-arm64.AppImage',
+      'Kim-0.2.0-linux-arm64.deb',
+      'Kim-0.2.0-linux-x64.pacman',
+      'Kim-0.2.0-linux-x86_64.AppImage',
+      'Kim-0.2.0-linux-x86_64.rpm',
       'latest-linux-arm64.yml',
       'latest-linux.yml',
     ])
@@ -1250,9 +1250,9 @@ describe('GitHub Release publication', () => {
     expect(produced).toHaveLength(targetCount)
     // Only the two macOS DMGs are renamed for the public download page.
     expect([...names].filter(([published, downloaded]) => published !== downloaded)).toEqual([
-      ['Weave Workbench-0.2.0-intel-chip.dmg', 'Weave Workbench-0.2.0-x64.dmg'],
-      ['Weave Workbench-0.2.0-m-chip.dmg', 'Weave Workbench-0.2.0-arm64.dmg'],
-      ['Weave Workbench-0.2.0-win-x64.msix', 'Weave Workbench-0.2.0-win-x64.appx'],
+      ['Kim-0.2.0-intel-chip.dmg', 'Kim-0.2.0-x64.dmg'],
+      ['Kim-0.2.0-m-chip.dmg', 'Kim-0.2.0-arm64.dmg'],
+      ['Kim-0.2.0-win-x64.msix', 'Kim-0.2.0-win-x64.appx'],
     ])
   })
 
@@ -1277,7 +1277,7 @@ describe('GitHub Release publication', () => {
   test('reports the published name of a missing artifact through the rename map', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'gooeypi-github-release-missing-'))
     try {
-      const { projectDirectory, inputDirectory } = writeMacReleaseFixture(directory, { omit: 'Weave Workbench-0.2.0-arm64.dmg' })
+      const { projectDirectory, inputDirectory } = writeMacReleaseFixture(directory, { omit: 'Kim-0.2.0-arm64.dmg' })
       // The arm64 DMG publishes as m-chip.dmg: the report must name the missing
       // published asset, not whichever entry happens to share its sort index.
       await expect(
@@ -1288,7 +1288,7 @@ describe('GitHub Release publication', () => {
           platforms: ['mac'],
           tag: 'v0.2.0',
         }),
-      ).rejects.toThrow(/incomplete; missing Weave Workbench-0\.2\.0-m-chip\.dmg$/)
+      ).rejects.toThrow(/incomplete; missing Kim-0\.2\.0-m-chip\.dmg$/)
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }
@@ -1297,17 +1297,17 @@ describe('GitHub Release publication', () => {
   test('takes legacy updater fields from the primary architecture manifest, not the first sorted path', () => {
     const directory = mkdtempSync(join(tmpdir(), 'gooeypi-update-metadata-'))
     try {
-      const arm64 = writeUpdateManifest(directory, 'a-arm64', 'Weave Workbench-0.2.0-arm64.zip', 'arm64-digest', '2026-01-01T00:00:00.000Z')
-      const x64 = writeUpdateManifest(directory, 'z-x64', 'Weave Workbench-0.2.0-x64.zip', 'x64-digest', '2026-02-02T00:00:00.000Z')
+      const arm64 = writeUpdateManifest(directory, 'a-arm64', 'Kim-0.2.0-arm64.zip', 'arm64-digest', '2026-01-01T00:00:00.000Z')
+      const x64 = writeUpdateManifest(directory, 'z-x64', 'Kim-0.2.0-x64.zip', 'x64-digest', '2026-02-02T00:00:00.000Z')
       const merged = mergeUpdateMetadata([arm64, x64], '0.2.0')
-      expect(merged.path).toBe('Weave Workbench-0.2.0-x64.zip')
+      expect(merged.path).toBe('Kim-0.2.0-x64.zip')
       expect(merged.sha512).toBe('x64-digest')
       expect(merged.releaseDate).toBe('2026-02-02T00:00:00.000Z')
-      expect(merged.files.map((file: { url: string }) => file.url)).toEqual(['Weave Workbench-0.2.0-arm64.zip', 'Weave Workbench-0.2.0-x64.zip'])
+      expect(merged.files.map((file: { url: string }) => file.url)).toEqual(['Kim-0.2.0-arm64.zip', 'Kim-0.2.0-x64.zip'])
       // Renaming the artifact directories reverses the path sort order without
       // changing which manifest supplies the legacy fields.
-      const swappedArm64 = writeUpdateManifest(directory, 'z-arm', 'Weave Workbench-0.2.0-arm64.zip', 'arm64-digest', '2026-01-01T00:00:00.000Z')
-      const swappedX64 = writeUpdateManifest(directory, 'a-intel', 'Weave Workbench-0.2.0-x64.zip', 'x64-digest', '2026-02-02T00:00:00.000Z')
+      const swappedArm64 = writeUpdateManifest(directory, 'z-arm', 'Kim-0.2.0-arm64.zip', 'arm64-digest', '2026-01-01T00:00:00.000Z')
+      const swappedX64 = writeUpdateManifest(directory, 'a-intel', 'Kim-0.2.0-x64.zip', 'x64-digest', '2026-02-02T00:00:00.000Z')
       expect(mergeUpdateMetadata([swappedArm64, swappedX64], '0.2.0')).toEqual(merged)
       expect(mergeUpdateMetadata([swappedX64, swappedArm64], '0.2.0')).toEqual(merged)
     } finally {
@@ -1323,12 +1323,12 @@ describe('GitHub Release publication', () => {
         writeFileSync(path, `version: 0.2.0\nfiles:\n${file}`)
         return path
       }
-      const sized = (size: string) => `  - url: Weave Workbench-0.2.0-x64.zip\n    sha512: digest\n    size: ${size}\n`
-      expect(() => mergeUpdateMetadata([write('missing-size.yml', '  - url: Weave Workbench-0.2.0-x64.zip\n    sha512: digest\n')], '0.2.0')).toThrow(/invalid size/)
+      const sized = (size: string) => `  - url: Kim-0.2.0-x64.zip\n    sha512: digest\n    size: ${size}\n`
+      expect(() => mergeUpdateMetadata([write('missing-size.yml', '  - url: Kim-0.2.0-x64.zip\n    sha512: digest\n')], '0.2.0')).toThrow(/invalid size/)
       expect(() => mergeUpdateMetadata([write('zero-size.yml', sized('0'))], '0.2.0')).toThrow(/invalid size/)
       expect(() => mergeUpdateMetadata([write('negative-size.yml', sized('-1'))], '0.2.0')).toThrow(/invalid size/)
       expect(() => mergeUpdateMetadata([write('text-size.yml', sized("'42'"))], '0.2.0')).toThrow(/invalid size/)
-      expect(() => mergeUpdateMetadata([write('empty-digest.yml', "  - url: Weave Workbench-0.2.0-x64.zip\n    sha512: ''\n    size: 42\n")], '0.2.0')).toThrow(/no sha512/)
+      expect(() => mergeUpdateMetadata([write('empty-digest.yml', "  - url: Kim-0.2.0-x64.zip\n    sha512: ''\n    size: 42\n")], '0.2.0')).toThrow(/no sha512/)
       expect(() => mergeUpdateMetadata([write('valid.yml', sized('42'))], '0.2.0')).not.toThrow()
       expect(() => mergeUpdateMetadata([write('a.yml', sized('42')), write('b.yml', sized('43'))], '0.2.0')).toThrow(/disagrees/)
       expect(() => mergeUpdateMetadata([], '0.2.0')).toThrow(/missing/)
@@ -1338,9 +1338,9 @@ describe('GitHub Release publication', () => {
   })
 
   test('deletes only unexpected assets from a resumed draft release', () => {
-    const assets = ['Weave Workbench-0.2.0-m-chip.dmg', 'Weave Workbench-0.1.9-arm64.dmg', 'latest-mac.yml', 'SHA256SUMS.txt']
-    const expected = ['Weave Workbench-0.2.0-m-chip.dmg', 'latest-mac.yml', 'SHA256SUMS.txt']
-    expect(staleDraftReleaseAssets(assets, expected)).toEqual(['Weave Workbench-0.1.9-arm64.dmg'])
+    const assets = ['Kim-0.2.0-m-chip.dmg', 'Kim-0.1.9-arm64.dmg', 'latest-mac.yml', 'SHA256SUMS.txt']
+    const expected = ['Kim-0.2.0-m-chip.dmg', 'latest-mac.yml', 'SHA256SUMS.txt']
+    expect(staleDraftReleaseAssets(assets, expected)).toEqual(['Kim-0.1.9-arm64.dmg'])
     expect(staleDraftReleaseAssets(expected, expected)).toEqual([])
     // An empty expected set would delete the whole draft, so it fails instead.
     expect(() => staleDraftReleaseAssets(assets, [])).toThrow(/expected release asset set is empty/)
@@ -1353,17 +1353,17 @@ describe('GitHub Release publication', () => {
     const directory = mkdtempSync(join(tmpdir(), 'gooeypi-draft-prune-'))
     try {
       mkdirSync(join(directory, 'release-assets'))
-      for (const name of ['Weave Workbench-0.2.0-m-chip.dmg', 'SHA256SUMS.txt']) writeFileSync(join(directory, 'release-assets', name), 'asset')
+      for (const name of ['Kim-0.2.0-m-chip.dmg', 'SHA256SUMS.txt']) writeFileSync(join(directory, 'release-assets', name), 'asset')
       writeFileSync(
         join(directory, 'draft.json'),
         JSON.stringify({
-          assets: [{ name: 'Weave Workbench-0.2.0-m-chip.dmg' }, { name: 'Weave Workbench-0.1.9-arm64.dmg' }],
+          assets: [{ name: 'Kim-0.2.0-m-chip.dmg' }, { name: 'Kim-0.1.9-arm64.dmg' }],
         }),
       )
       const args = ['scripts/release/prune-draft-release-assets.mjs', '--assets', join(directory, 'draft.json'), '--expected', join(directory, 'release-assets')]
       const result = spawnSync(process.execPath, args, { encoding: 'utf8' })
       expect(result.status).toBe(0)
-      expect(result.stdout.trim().split('\n')).toEqual(['Weave Workbench-0.1.9-arm64.dmg'])
+      expect(result.stdout.trim().split('\n')).toEqual(['Kim-0.1.9-arm64.dmg'])
       const failed = spawnSync(process.execPath, args.slice(0, 3), {
         encoding: 'utf8',
       })
@@ -1408,20 +1408,20 @@ describe('GitHub Release publication', () => {
       mkdirSync(artifactDirectory)
       const updateTarget =
         name === 'latest-mac.yml'
-          ? 'Weave Workbench-0.2.0-arm64.zip'
+          ? 'Kim-0.2.0-arm64.zip'
           : name === 'latest-linux.yml'
-            ? 'Weave Workbench-0.2.0-linux-x86_64.AppImage'
+            ? 'Kim-0.2.0-linux-x86_64.AppImage'
             : name === 'latest-linux-arm64.yml'
-              ? 'Weave Workbench-0.2.0-linux-arm64.AppImage'
-              : 'Weave Workbench-0.2.0-win-x64.exe'
+              ? 'Kim-0.2.0-linux-arm64.AppImage'
+              : 'Kim-0.2.0-win-x64.exe'
       const content = name.startsWith('latest')
-        ? `version: 0.2.0\nfiles:\n  - url: ${updateTarget}\n    sha512: checksum-${index}\n    size: ${index + 1}\n${name === 'latest-mac.yml' ? '  - url: Weave Workbench-0.2.0-arm64.dmg\n    sha512: checksum-arm64-dmg\n    size: 44\n' : ''}path: ${updateTarget}\nsha512: checksum-${index}\n`
+        ? `version: 0.2.0\nfiles:\n  - url: ${updateTarget}\n    sha512: checksum-${index}\n    size: ${index + 1}\n${name === 'latest-mac.yml' ? '  - url: Kim-0.2.0-arm64.dmg\n    sha512: checksum-arm64-dmg\n    size: 44\n' : ''}path: ${updateTarget}\nsha512: checksum-${index}\n`
         : `asset ${index}`
       writeFileSync(join(artifactDirectory, name), content)
     }
     const secondMacManifest = join(inputDirectory, 'macos-x64')
     mkdirSync(secondMacManifest)
-    writeFileSync(join(secondMacManifest, 'latest-mac.yml'), 'version: 0.2.0\nfiles:\n  - url: Weave Workbench-0.2.0-x64.zip\n    sha512: checksum-x64\n    size: 42\n')
+    writeFileSync(join(secondMacManifest, 'latest-mac.yml'), 'version: 0.2.0\nfiles:\n  - url: Kim-0.2.0-x64.zip\n    sha512: checksum-x64\n    size: 42\n')
     try {
       const result = await prepareGitHubRelease({
         inputDirectory,
@@ -1440,16 +1440,16 @@ describe('GitHub Release publication', () => {
         expect(checksums).toContain(`${digest}  ${name}`)
       }
       const macFeed = readFileSync(join(outputDirectory, 'latest-mac.yml'), 'utf8')
-      expect(macFeed).toContain('Weave Workbench-0.2.0-arm64.zip')
-      expect(macFeed).toContain('Weave Workbench-0.2.0-x64.zip')
-      expect(macFeed).toContain('Weave Workbench-0.2.0-m-chip.dmg')
-      expect(macFeed).not.toContain('Weave Workbench-0.2.0-arm64.dmg')
+      expect(macFeed).toContain('Kim-0.2.0-arm64.zip')
+      expect(macFeed).toContain('Kim-0.2.0-x64.zip')
+      expect(macFeed).toContain('Kim-0.2.0-m-chip.dmg')
+      expect(macFeed).not.toContain('Kim-0.2.0-arm64.dmg')
       const linuxFeed = readFileSync(join(outputDirectory, 'latest-linux.yml'), 'utf8')
-      expect(linuxFeed).toContain('Weave Workbench-0.2.0-linux-x86_64.AppImage')
-      expect(linuxFeed).not.toContain('Weave Workbench-0.2.0-linux-arm64.AppImage')
+      expect(linuxFeed).toContain('Kim-0.2.0-linux-x86_64.AppImage')
+      expect(linuxFeed).not.toContain('Kim-0.2.0-linux-arm64.AppImage')
       const linuxArmFeed = readFileSync(join(outputDirectory, 'latest-linux-arm64.yml'), 'utf8')
-      expect(linuxArmFeed).toContain('Weave Workbench-0.2.0-linux-arm64.AppImage')
-      expect(linuxArmFeed).not.toContain('Weave Workbench-0.2.0-linux-x86_64.AppImage')
+      expect(linuxArmFeed).toContain('Kim-0.2.0-linux-arm64.AppImage')
+      expect(linuxArmFeed).not.toContain('Kim-0.2.0-linux-x86_64.AppImage')
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }
@@ -1485,12 +1485,12 @@ describe('GitHub Release publication', () => {
         mkdirSync(artifactDirectory)
         const updateTarget =
           name === 'latest-mac.yml'
-            ? 'Weave Workbench-0.2.0-arm64.zip'
+            ? 'Kim-0.2.0-arm64.zip'
             : name === 'latest-linux.yml'
-              ? 'Weave Workbench-0.2.0-linux-x86_64.AppImage'
+              ? 'Kim-0.2.0-linux-x86_64.AppImage'
               : name === 'latest-linux-arm64.yml'
-                ? 'Weave Workbench-0.2.0-linux-arm64.AppImage'
-                : 'Weave Workbench-0.2.0-win-x64.exe'
+                ? 'Kim-0.2.0-linux-arm64.AppImage'
+                : 'Kim-0.2.0-win-x64.exe'
         writeFileSync(join(artifactDirectory, name), name.startsWith('latest') ? `version: 0.2.0\nfiles:\n  - url: ${updateTarget}\n    sha512: checksum-${index}\n` : `asset ${index}`)
       }
       const duplicateDirectory = join(inputDirectory, 'duplicate')
@@ -1573,14 +1573,14 @@ describe('post-package verification helpers', () => {
   test('keeps every platform native unpack allowlist exact and architecture-specific', () => {
     const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
     expect(packageJson.author).toEqual({
-      name: 'Weave Workbench contributors',
+      name: 'Kim contributors',
       email: '260412432+jinyitao123@users.noreply.github.com',
     })
-    expect(packageJson.description).toBe('The desktop workspace for Weave teams and Forge business applications')
-    expect(packageJson.homepage).toBe('https://github.com/jinyitao123/weave-workbench')
-    expect(packageJson.build.productName).toBe('Weave Workbench')
-    expect(packageJson.build.appId).toBe('com.inocube.weave-workbench')
-    expect(packageJson.desktopName).toBe('weave-workbench.desktop')
+    expect(packageJson.description).toBe('Kim, a desktop workspace for Weave agent teams')
+    expect(packageJson.homepage).toBe('https://github.com/jinyitao123/kim')
+    expect(packageJson.build.productName).toBe('Kim')
+    expect(packageJson.build.appId).toBe('com.inocube.kim')
+    expect(packageJson.desktopName).toBe('kim.desktop')
     expect(packageJson.build.linux.synopsis).toBe(packageJson.description)
     expect(packageJson.build.linux.syncDesktopName).toBe(true)
     expect(packageJson.build.mac.icon).toBe('assets/icon.icns')
@@ -1866,14 +1866,14 @@ describe('cross-platform packaging repair', () => {
     const directory = mkdtempSync(join(tmpdir(), 'gooeypi-executable-name-'))
     const configuration = {
       executableName: 'global-executable',
-      productName: 'Weave Workbench',
+      productName: 'Kim',
       linux: { executableName: 'linux-platform-executable' },
       win: { executableName: 'windows-platform-executable' },
     }
     try {
       writeFileSync(join(directory, 'linux-platform-executable'), 'linux')
       writeFileSync(join(directory, 'windows-platform-executable.exe'), 'windows')
-      writeFileSync(join(directory, 'weave-workbench-desktop'), 'linux fallback')
+      writeFileSync(join(directory, 'kim'), 'linux fallback')
 
       // The smoke launcher calls this resolver directly, so it uses these same names.
       expect(packagedExecutablePath(directory, 'linux', configuration)).toBe(join(directory, 'linux-platform-executable'))
@@ -1882,7 +1882,7 @@ describe('cross-platform packaging repair', () => {
         packagedExecutablePath(directory, 'linux', {
           productName: 'Different Product Name',
         }),
-      ).toBe(join(directory, 'weave-workbench-desktop'))
+      ).toBe(join(directory, 'kim'))
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }

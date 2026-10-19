@@ -1,5 +1,5 @@
 /**
- * GooeyPi questionnaire tool.
+ * Kim questionnaire tool.
  *
  * Loaded explicitly for every Prime Agent and Pi runtime started by the desktop
  * app. The extension is self-contained because packaged the app loads it

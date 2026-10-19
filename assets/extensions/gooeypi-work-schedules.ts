@@ -1,5 +1,5 @@
 /**
- * GooeyPi durable schedules for Prime Agent and Pi.
+ * Kim durable schedules for Prime Agent and Pi.
  *
  * Loaded as an explicit extension by both harnesses. It is deliberately
  * self-contained and talks only to the runtime-scoped loopback schedule
@@ -97,7 +97,7 @@ interface Bridge { url?: string; token?: string }
 function bridgeFrom(env: Record<string, string | undefined>): Bridge { return { url: env.PRIME_WORK_SCHEDULE_URL, token: env.PRIME_WORK_SCHEDULE_TOKEN } }
 
 async function call(bridge: Bridge, method: string, params: Record<string, unknown> = {}): Promise<unknown> {
-  if (!bridge.url || !bridge.token) throw new Error('GooeyPi scheduling is not available in this runtime')
+  if (!bridge.url || !bridge.token) throw new Error('Kim scheduling is not available in this runtime')
   let response: Response
   try {
     response = await fetch(bridge.url, {
@@ -106,7 +106,7 @@ async function call(bridge: Bridge, method: string, params: Record<string, unkno
       body: JSON.stringify({ method, params }),
     })
   } catch (error) {
-    throw new Error(`GooeyPi's scheduling broker is not reachable: ${String(error)}`)
+    throw new Error(`Kim's scheduling broker is not reachable: ${String(error)}`)
   }
   const body = (await response.json()) as BridgeResult
   if (!body.ok) throw new Error(body.error || `Schedule call failed with status ${response.status}`)
@@ -154,7 +154,7 @@ function registerTools(pi: WorkExtensionApi, Type: HostTypebox, bridge: Bridge):
   pi.registerTool({
     name: 'scheduled_tasks_list',
     label: 'List scheduled tasks',
-    description: 'List durable GooeyPi tasks belonging to the active project or thread. Use this before editing or managing an existing schedule.',
+    description: 'List durable Kim tasks belonging to the active project or thread. Use this before editing or managing an existing schedule.',
     parameters: Type.Object({}),
     async execute() { return text(await call(bridge, 'list')) },
   })
@@ -162,7 +162,7 @@ function registerTools(pi: WorkExtensionApi, Type: HostTypebox, bridge: Bridge):
   pi.registerTool({
     name: 'scheduled_task_create_once',
     label: 'Create one-time task',
-    description: 'Create a durable one-time GooeyPi task for the current Pi Work project or thread. Use current_project for a fresh thread per run and current_session to preserve this thread context. The app must remain running for local scheduled work.',
+    description: 'Create a durable one-time Kim task for the current Pi Work project or thread. Use current_project for a fresh thread per run and current_session to preserve this thread context. The app must remain running for local scheduled work.',
     parameters: Type.Object({ prompt: Type.String(), at: Type.String({ description: 'ISO timestamp with timezone' }), target, title, model, thinking, fast }),
     async execute(_id, params: { prompt: string; at: string; target?: string; title?: string; model?: string; thinking?: string; fast?: boolean }) {
       return text(await call(bridge, 'create', { target: params.target ?? 'current_project', input: { title: params.title, prompt: params.prompt, timing: { kind: 'once', at: params.at }, execution: execution(params) } }))
@@ -172,7 +172,7 @@ function registerTools(pi: WorkExtensionApi, Type: HostTypebox, bridge: Bridge):
   pi.registerTool({
     name: 'scheduled_task_create_recurring',
     label: 'Create recurring task',
-    description: 'Create a durable recurring GooeyPi task for the current Pi Work project or thread. RRULE is RFC 5545 without DTSTART; provide a local start time and IANA timezone separately.',
+    description: 'Create a durable recurring Kim task for the current Pi Work project or thread. RRULE is RFC 5545 without DTSTART; provide a local start time and IANA timezone separately.',
     parameters: Type.Object({ prompt: Type.String(), rrule: Type.String(), dtstart_local: Type.String(), time_zone: Type.String(), target, title, model, thinking, fast }),
     async execute(_id, params: { prompt: string; rrule: string; dtstart_local: string; time_zone: string; target?: string; title?: string; model?: string; thinking?: string; fast?: boolean }) {
       return text(await call(bridge, 'create', { target: params.target ?? 'current_project', input: { title: params.title, prompt: params.prompt, timing: { kind: 'rrule', rrule: params.rrule, dtstartLocal: params.dtstart_local, timeZone: params.time_zone }, execution: execution(params) } }))
