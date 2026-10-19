@@ -44,7 +44,6 @@ function services(): Record<string, unknown> {
     heartbeats: serviceStub(),
     schedules: { ...serviceStub(), onDidChange: vi.fn(() => () => undefined) },
     browser: { ...serviceStub(), onDidChange: vi.fn(() => vi.fn()), onPointer: vi.fn(() => vi.fn()), onActivity: vi.fn(() => vi.fn()) },
-    pets: { list: vi.fn(async () => [{ id: 'orb' }]), sprite: vi.fn(async () => 'data:image/webp;base64,pet') },
     pi: harnessStub(),
     loom: harnessStub(),
     applyInterfaceZoom: vi.fn(),
@@ -102,13 +101,6 @@ describe('registerIpc verify gate', () => {
     registration.dispose()
   })
 
-  it('exposes fixed read-only pet discovery channels to an authorized renderer', async () => {
-    const event = fakeEvent()
-    registration.authorize(event.sender as never)
-    await expect(handlers.get('pets:list')!(event)).resolves.toEqual([{ id: 'orb' }])
-    await expect(handlers.get('pets:sprite')!(event, 'gooey-pi')).resolves.toBe('data:image/webp;base64,pet')
-    registration.dispose()
-  })
 
   it('applies a validated interface scale to every renderer only after the settings update succeeds', async () => {
     const event = fakeEvent()

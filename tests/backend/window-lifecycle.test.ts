@@ -30,16 +30,16 @@ describe('application window lifecycle', () => {
   it('gives migration failures a dedicated actionable startup dialog', () => {
     const migration = new StateMigrationError(
       'Legacy authority retirement failed.',
-      'C:\\Users\\alice\\GooeyPi\\prime-work-state-v4.json',
-      'C:\\Users\\alice\\GooeyPi\\prime-work-state.json',
-      'C:\\Users\\alice\\GooeyPi\\prime-work-state.json.migrated-v4-backup',
+      'C:\\Users\\alice\\Kim\\prime-work-state-v4.json',
+      'C:\\Users\\alice\\Kim\\prime-work-state.json',
+      'C:\\Users\\alice\\Kim\\prime-work-state.json.migrated-v4-backup',
     )
 
     expect(startupFailureDialog(migration)).toMatchObject({
-      title: 'GooeyPi state migration failed',
+      title: 'Kim state migration failed',
       detail: expect.stringMatching(/startup stopped.*retry.*prime-work-state-v4\.json.*prime-work-state\.json.*migrated-v4-backup.*do not delete/i),
     })
-    expect(startupFailureDialog(new UnsupportedStateVersionError(99, '/tmp/state.json'))?.title).toBe('GooeyPi update required')
+    expect(startupFailureDialog(new UnsupportedStateVersionError(99, '/tmp/state.json'))?.title).toBe('Kim update required')
     expect(startupFailureDialog(new Error('ordinary startup failure'))).toBeNull()
   })
 
@@ -77,7 +77,7 @@ describe('application window lifecycle', () => {
   })
 
   it('resolves packaged renderer assets with Windows path separators', () => {
-    const root = 'C:\\GooeyPi\\resources\\app.asar\\out\\renderer'
+    const root = 'C:\\Kim\\resources\\app.asar\\out\\renderer'
     expect(resolveRendererAssetPath(root, '/index.html')).toBe(`${root}\\index.html`)
     expect(resolveRendererAssetPath(root, '/../main/index.js')).toBeNull()
     expect(resolveRendererAssetPath(root, '/assets/app.css')).toBe(`${root}\\assets\\app.css`)
@@ -104,32 +104,32 @@ describe('application window lifecycle', () => {
 
     expect(activeShutdownWork(runtimes, true)).toEqual({ runningAgents: 4, activeSchedules: true })
     expect(shutdownPrompt({ runningAgents: 4, activeSchedules: true })).toEqual({
-      message: 'Close GooeyPi while an agent is running?',
-      detail: '4 agent runs are still in progress and will be stopped. Scheduled automations will not run while GooeyPi is closed.',
+      message: 'Close Kim while an agent is running?',
+      detail: '4 agent runs are still in progress and will be stopped. Scheduled automations will not run while Kim is closed.',
     })
     expect(shutdownPrompt({ runningAgents: 1, activeSchedules: false })).toEqual({
-      message: 'Close GooeyPi while an agent is running?',
+      message: 'Close Kim while an agent is running?',
       detail: 'An agent run is still in progress and will be stopped.',
     })
     expect(shutdownPrompt({ runningAgents: 0, activeSchedules: true })).toEqual({
-      message: 'Close GooeyPi?',
-      detail: 'Scheduled automations will not run while GooeyPi is closed.',
+      message: 'Close Kim?',
+      detail: 'Scheduled automations will not run while Kim is closed.',
     })
   })
 
   it('defaults to cancel and uses the non-blocking dialog', async () => {
     const window = { isDestroyed: () => false } as unknown as BrowserWindow
-    const prompt = { message: 'Close GooeyPi?', detail: 'Scheduled automations will not run while GooeyPi is closed.' }
+    const prompt = { message: 'Close Kim?', detail: 'Scheduled automations will not run while Kim is closed.' }
     electron.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
 
     await expect(confirmAppClose(window, prompt)).resolves.toBe(false)
     expect(electron.dialog.showMessageBox).toHaveBeenCalledWith(window, {
       type: 'warning',
-      buttons: ['Cancel', 'Close GooeyPi'],
+      buttons: ['Cancel', 'Close Kim'],
       defaultId: 0,
       cancelId: 0,
       noLink: true,
-      title: 'GooeyPi',
+      title: 'Kim',
       ...prompt,
     })
 

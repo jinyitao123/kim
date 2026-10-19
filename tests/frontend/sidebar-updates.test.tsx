@@ -60,7 +60,7 @@ describe('sidebar update control', () => {
 
     await press(container.querySelector('.sidebar-update')!)
     const dialog = document.body.querySelector('[role="dialog"]')
-    expect(dialog?.textContent).toContain('Restart GooeyPi to install the update?')
+    expect(dialog?.textContent).toContain('Restart Kim to install the update?')
     expect(dialog?.textContent).toContain('close and restart')
     expect(dialog?.textContent).not.toContain('download the update')
 
@@ -109,6 +109,6 @@ describe('sidebar update control', () => {
     expect(update?.getAttribute('aria-live')).toBeNull()
     const status = container.querySelector('.sidebar__footer [role="status"]')
     expect(status?.getAttribute('aria-live')).toBe('polite')
-    expect(status?.textContent).toBe('Downloading GooeyPi update 0.2.0')
+    expect(status?.textContent).toBe('Downloading Kim update 0.2.0')
   })
 })

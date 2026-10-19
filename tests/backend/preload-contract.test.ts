@@ -62,8 +62,6 @@ const INVOKE_CASES: Array<[domain: string, method: string, channel: string, args
   ['voice', 'transcribe', 'voice:transcribe', [{ provider: 'openai', audioBase64: 'audio' }]],
   ['voice', 'testSelfHosted', 'voice:test-self-hosted', [{ url: 'https://voice.example' }]],
   ['voice', 'executeTool', 'voice:execute-tool', [{ name: 'list_projects', arguments: {} }, 'omp']],
-  ['pets', 'list', 'pets:list', []],
-  ['pets', 'sprite', 'pets:sprite', ['gooey-pi']],
   ['terminal', 'create', 'terminal:create', [{ cwd: '/repo' }]],
   ['terminal', 'bindSession', 'terminal:bind-session', ['terminal', '/session.jsonl']],
   ['terminal', 'kill', 'terminal:kill', ['terminal']],

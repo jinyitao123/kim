@@ -215,7 +215,7 @@ describe('scheduled task account ownership', () => {
 
     const reopened = serviceFor(trackedStore(path), ownerA)
     await reopened.start()
-    expect(reopened.get(task.id).runs[0]).toMatchObject({ status: 'interrupted', error: 'GooeyPi quit before this run could finish.' })
+    expect(reopened.get(task.id).runs[0]).toMatchObject({ status: 'interrupted', error: 'Kim quit before this run could finish.' })
     await reopened.stop()
   })
 })

@@ -8,7 +8,7 @@ import { isAbsolute } from 'node:path'
 export const PACKAGED_RENDERER_URL = 'prime-work://app/index.html'
 
 /**
- * Diagnostic startup check: `GooeyPi --packaged-smoke=<absolute marker path>`
+ * Diagnostic startup check: `Kim --packaged-smoke=<absolute marker path>`
  * writes one readiness marker and exits as soon as the trusted renderer has
  * completed an authorized IPC round trip. It grants no capability, opens no new
  * IPC surface, and reports readiness only after the ordinary renderer trust

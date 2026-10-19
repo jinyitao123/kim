@@ -99,7 +99,7 @@ describe('PluginsPage bundled capability controls', () => {
     const refresh = vi.fn(async () => undefined)
     const notion: SkillRecord = {
       id: 'prime-mcp-notion', name: 'Notion', description: 'Official MCP.', kind: 'mcp', location: 'bundled', enabled: false,
-      availability: { available: false, detail: 'Network MCP servers are managed outside GooeyPi.' },
+      availability: { available: false, detail: 'Network MCP servers are managed outside Kim.' },
     }
     const render = async (enabled: boolean) => act(async () => {
       root.render(<PluginsPage
@@ -115,7 +115,7 @@ describe('PluginsPage bundled capability controls', () => {
     })
     await render(false)
     const notionStatus = container.querySelector('[role="img"][aria-label="Externally managed Notion"]')
-    expect(container.querySelector(`#${notionStatus?.getAttribute('aria-describedby')}`)?.textContent).toContain('Network MCP servers are managed outside GooeyPi.')
+    expect(container.querySelector(`#${notionStatus?.getAttribute('aria-describedby')}`)?.textContent).toContain('Network MCP servers are managed outside Kim.')
     expect(container.querySelector('button[aria-label="Enable Notion"]')).toBeNull()
     expect(container.querySelector('button[aria-label="Forget authorization for Notion"]')).toBeNull()
     expect(mutateCapability).not.toHaveBeenCalled()
@@ -132,7 +132,7 @@ describe('PluginsPage bundled capability controls', () => {
     const setMcpEnabled = vi.fn(async () => ({ ok: true, output: '' }))
     const docs: SkillRecord = {
       id: 'mcp:user:docs', name: 'docs', description: 'HTTP MCP.', kind: 'mcp', location: 'user', enabled: true,
-      availability: { available: false, detail: 'Network MCP servers are managed outside GooeyPi.' },
+      availability: { available: false, detail: 'Network MCP servers are managed outside Kim.' },
     }
     const render = async (enabled: boolean) => act(async () => {
       root.render(<PluginsPage
@@ -147,14 +147,14 @@ describe('PluginsPage bundled capability controls', () => {
     })
     await render(true)
     const enabledStatus = container.querySelector('[role="img"][aria-label="Externally managed docs"]')
-    expect(container.querySelector(`#${enabledStatus?.getAttribute('aria-describedby')}`)?.textContent).toContain('managed outside GooeyPi')
+    expect(container.querySelector(`#${enabledStatus?.getAttribute('aria-describedby')}`)?.textContent).toContain('managed outside Kim')
     expect(container.querySelector('button[aria-label="Disable docs"]')).toBeNull()
     expect(container.querySelector('button[aria-label="Remove docs"]')).not.toBeNull()
     expect(setMcpEnabled).not.toHaveBeenCalled()
 
     await render(false)
     const disabledStatus = container.querySelector('[role="img"][aria-label="Externally managed docs"]')
-    expect(container.querySelector(`#${disabledStatus?.getAttribute('aria-describedby')}`)?.textContent).toContain('managed outside GooeyPi')
+    expect(container.querySelector(`#${disabledStatus?.getAttribute('aria-describedby')}`)?.textContent).toContain('managed outside Kim')
     expect(container.querySelector('button[aria-label="Enable docs"]')).toBeNull()
     expect(setMcpEnabled).not.toHaveBeenCalled()
   })
@@ -163,7 +163,7 @@ describe('PluginsPage bundled capability controls', () => {
     const mutateCapability = vi.fn(async () => ({ ok: true, output: '' }))
     const docs: SkillRecord = {
       id: 'mcp:user:docs', name: 'team docs', description: 'HTTP MCP.', kind: 'mcp', location: 'user', enabled: true,
-      associatedPackageSource: 'npm:prime-docs', availability: { available: false, detail: 'Network MCP servers are managed outside GooeyPi.' },
+      associatedPackageSource: 'npm:prime-docs', availability: { available: false, detail: 'Network MCP servers are managed outside Kim.' },
       definitionKey: 'team/docs',
     } as SkillRecord & { definitionKey: string }
     await act(async () => {
@@ -183,7 +183,7 @@ describe('PluginsPage bundled capability controls', () => {
     const actions = remove.closest('.capability-actions')!
     expect(actions.lastElementChild?.getAttribute('role')).toBe('img')
     expect(actions.lastElementChild?.getAttribute('aria-label')).toBe('Externally managed team docs')
-    expect(container.querySelector(`#${actions.lastElementChild?.getAttribute('aria-describedby')}`)?.textContent).toContain('Network MCP servers are managed outside GooeyPi.')
+    expect(container.querySelector(`#${actions.lastElementChild?.getAttribute('aria-describedby')}`)?.textContent).toContain('Network MCP servers are managed outside Kim.')
     await act(async () => { remove.click() })
     const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')!
     expect(dialog.textContent).toContain('only the server definition. Prime authorization is unchanged')
@@ -196,7 +196,7 @@ describe('PluginsPage bundled capability controls', () => {
     const record: SkillRecord = {
       id: 'mcp:user:oversized', name: 'oversized definition', description: 'Externally managed format.',
       kind: 'mcp', location: 'user', enabled: true, definitionRemovalAvailable: false,
-      availability: { available: false, detail: 'Prime Agent MCP servers are managed outside GooeyPi.' },
+      availability: { available: false, detail: 'Prime Agent MCP servers are managed outside Kim.' },
     }
     await act(async () => {
       root.render(<PluginsPage
@@ -257,7 +257,7 @@ describe('PluginsPage bundled capability controls', () => {
     let dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')!
     const primeAddMcp = [...dialog.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.includes('Add MCP'))!
     expect(primeAddMcp.disabled).toBe(true)
-    expect(primeAddMcp.textContent).toContain('managed outside GooeyPi')
+    expect(primeAddMcp.textContent).toContain('managed outside Kim')
     expect(dialog.textContent).not.toContain('Server URL')
     expect(dialog.textContent).not.toContain('Authentication')
     expect(connect).not.toHaveBeenCalled()
@@ -355,7 +355,7 @@ describe('PluginsPage bundled capability controls', () => {
     const addMcp = [...dialog.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.includes('Add MCP'))!
     expect(addMcp.disabled).toBe(true)
     expect(addMcp.textContent).toContain('Enable Pi MCP Adapter first')
-    expect(dialog.textContent).toContain('Not every third-party package, plugin, or extension will work in GooeyPi')
+    expect(dialog.textContent).toContain('Not every third-party package, plugin, or extension will work in Kim')
     await act(async () => { [...dialog.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'create a GitHub issue')!.click() })
     expect(openExternal).toHaveBeenCalledWith('https://github.com/jinyitao123/weave-workbench/issues/new')
 
@@ -446,7 +446,7 @@ describe('PluginsPage bundled capability controls', () => {
 
     const unusualStatus = container.querySelector('[role="img"][aria-label="Externally managed team/docs"]')
     expect(container.querySelector(`#${unusualStatus?.getAttribute('aria-describedby')}`)?.textContent).toContain('cannot safely enable or disable')
-    expect(container.querySelector(`#${unusualStatus?.getAttribute('aria-describedby')}`)?.textContent).toContain('managed outside GooeyPi')
+    expect(container.querySelector(`#${unusualStatus?.getAttribute('aria-describedby')}`)?.textContent).toContain('managed outside Kim')
     expect(container.querySelector('button[aria-label="Disable team/docs"]')).toBeNull()
     expect(container.querySelector('button[aria-label="Remove team/docs"]')).not.toBeNull()
     expect(container.querySelector('button[aria-label="Enable oversized local MCP"]')).toBeNull()

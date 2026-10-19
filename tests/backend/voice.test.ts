@@ -124,7 +124,7 @@ describe('VoiceService', () => {
   it('does not decrypt or use a saved key while secure storage is unavailable', async () => {
     let storageAvailable = true
     const decrypt = vi.fn((value: Buffer) => value.toString().replace(/^encrypted:/, ''))
-    const message = 'Voice keys stay in memory while GooeyPi is running. Enter them again after restarting GooeyPi.'
+    const message = 'Voice keys stay in memory while Kim is running. Enter them again after restarting Kim.'
     const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
       expect(init?.headers).toEqual({ Authorization: 'Bearer sk-session-value' })
       return new Response('v=0\r\no=answer')
@@ -159,7 +159,7 @@ describe('VoiceService', () => {
   })
 
   it('keeps a fallback key only in memory when credential storage is unavailable', async () => {
-    const message = 'Voice keys stay in memory while GooeyPi is running. Enter them again after restarting GooeyPi.'
+    const message = 'Voice keys stay in memory while Kim is running. Enter them again after restarting Kim.'
     const encrypt = vi.fn((value: string) => Buffer.from(`encrypted:${value}`))
     const { service, options } = makeService({
       secretCodec: {
@@ -294,7 +294,7 @@ describe('VoiceService', () => {
 
     await expect(service.executeTool({
       name: 'start_task', arguments: { project_id: `${harness}-project`, prompt },
-    }, harness)).rejects.toThrow('Network MCP authentication is managed outside GooeyPi')
+    }, harness)).rejects.toThrow('Network MCP authentication is managed outside Kim')
     expect(options.projects[harness].list).not.toHaveBeenCalled()
     expect(agent.start).not.toHaveBeenCalled()
   })

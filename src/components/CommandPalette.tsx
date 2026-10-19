@@ -21,7 +21,7 @@ export function CommandPalette({ open, onClose, onNavigate, onNewSession, onTogg
     {id:'browser',label:'Toggle browser',detail:'Open the in-app browser',shortcut:shortcutLabel(platform, ['Primary', 'Shift', 'B']),icon:<BrowserGlobe size={14}/>,run:onOpenBrowser},
     {id:'terminal',label:'Toggle terminal',detail:'Open a project shell',shortcut:shortcutLabel(platform, ['Primary', 'J']),icon:<Terminal size={14}/>,run:onToggleTerminal},
     {id:'sidebar',label:'Toggle sidebar',detail:'Show or hide project navigation',shortcut:shortcutLabel(platform, ['Primary', 'B']),icon:<LayoutPanelLeft size={14}/>,run:onToggleSidebar},
-    {id:'settings',label:'Open Settings',detail:'Configure GooeyPi',shortcut:shortcutLabel(platform, ['Primary', ',']),icon:<Settings size={14}/>,run:()=>onNavigate('settings')},
+    {id:'settings',label:'Open Settings',detail:'Configure Kim',shortcut:shortcutLabel(platform, ['Primary', ',']),icon:<Settings size={14}/>,run:()=>onNavigate('settings')},
   ]
   const visible=commands.filter((command)=>`${command.label} ${command.detail}`.toLowerCase().includes(query.toLowerCase()))
   useEffect(()=>{if(open){setQuery('');setActive(0);requestAnimationFrame(()=>inputRef.current?.focus())}},[open])

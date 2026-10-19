@@ -205,10 +205,10 @@ export class PrimeProviderService {
     const warnings = [
       ...catalogLimitWarnings('Prime Agent', relation, { uniqueModels: true }),
       snapshot.models.length > eligibleModels.length
-        ? `Prime Agent returned ${(snapshot.models.length - eligibleModels.length).toLocaleString('en-US')} model entries GooeyPi could not validate; they were skipped.`
+        ? `Prime Agent returned ${(snapshot.models.length - eligibleModels.length).toLocaleString('en-US')} model entries Kim could not validate; they were skipped.`
         : undefined,
       fallbackProviders.includes('openai-codex') && relation.models.some((model) => model.provider === 'openai-codex')
-        ? 'ChatGPT subscription model discovery was unavailable or incomplete; GooeyPi is showing Prime Agent’s configured Codex catalogue.'
+        ? 'ChatGPT subscription model discovery was unavailable or incomplete; Kim is showing Prime Agent’s configured Codex catalogue.'
         : undefined,
       executableDiscoveryWarning,
       this.registry.getError()?.slice(0, 4_000),
@@ -231,8 +231,8 @@ export class PrimeProviderService {
     const model = catalog.models.find((candidate) => candidate.key === key)
     if (!model) throw new Error('Model was not found in the Prime Agent catalog')
     const provider = catalog.providers.find((candidate) => candidate.id === model.provider)
-    if (!provider?.enabled) throw new Error(`Provider ${model.provider} is disabled in GooeyPi`)
-    if (model.enabled === false) throw new Error(`${model.name} is disabled in GooeyPi`)
+    if (!provider?.enabled) throw new Error(`Provider ${model.provider} is disabled in Kim`)
+    if (model.enabled === false) throw new Error(`${model.name} is disabled in Kim`)
     if (!model.available) throw new Error(`Provider ${model.provider} is not configured for ${model.name}`)
     return model
   }

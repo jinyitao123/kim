@@ -40,7 +40,7 @@ beforeEach(() => {
     settings: { get: async () => settings, update: async (patch: Partial<typeof settings>) => { settings = { ...settings, ...patch }; return settings } },
     updates: { getState: async () => ({ phase: 'idle' }), onChanged: noopSubscription },
     projects: { list: async () => [] }, sessions: { list: async () => [], read: async () => [], onChanged: noopSubscription },
-    agent: { list: async () => [], onEvent: noopSubscription }, pets: { list: async () => [] },
+    agent: { list: async () => [], onEvent: noopSubscription },
     providers: { catalog: async () => ({ models: [], providers: [] }), onAuthEvent: noopSubscription }, plugins: { list: async () => ({ skills: [], warnings: [] }) },
     browser: { state: async () => ({ tabs: [] }), onChanged: noopSubscription, onPointer: noopSubscription, onActivity: noopSubscription, setPreviewContext: async () => true },
     schedules: { list: async () => [], onChanged: noopSubscription }, heartbeats: { list: async () => [] }, git: { status: async () => ({ isRepo: false, files: [] }) },

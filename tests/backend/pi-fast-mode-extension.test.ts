@@ -39,6 +39,6 @@ describe('Pi fast-mode compatibility extension', () => {
 
     expect(extension.provider({ payload: { input: [] } }, { model: { ...supportedModel, id: 'gpt-5.3-codex' } })).toBeUndefined()
     expect(extension.provider({ payload: [] }, { model: supportedModel })).toBeUndefined()
-    expect(() => extension.command('turbo')).toThrow('Invalid GooeyPi fast-mode tier')
+    expect(() => extension.command('turbo')).toThrow('Invalid Kim fast-mode tier')
   })
 })

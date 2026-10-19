@@ -216,7 +216,7 @@ export abstract class CliModelCatalogService implements ModelCatalogProvider {
     const warnings = [
       ...catalogLimitWarnings(this.harnessLabel, relation, { uniqueModels: true }),
       invalidEntries > 0
-        ? `${this.harnessLabel} returned ${invalidEntries.toLocaleString('en-US')} model entries GooeyPi could not validate; they were skipped.`
+        ? `${this.harnessLabel} returned ${invalidEntries.toLocaleString('en-US')} model entries Kim could not validate; they were skipped.`
         : undefined,
     ].filter((warning): warning is string => Boolean(warning))
 

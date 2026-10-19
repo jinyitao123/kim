@@ -127,17 +127,17 @@ function HarnessMark({ harness, size }: { harness: HarnessId; size: number }) {
 function updateControlCopy(state: AppUpdateState): { label: string; title: string } {
   const version = state.version ? ` ${state.version}` : ''
   switch (state.phase) {
-    case 'checking': return { label: 'Checking for updates', title: 'Checking GitHub Releases for a new GooeyPi version' }
-    case 'available': return { label: `Download${version}`, title: `Download and restart GooeyPi${version}` }
+    case 'checking': return { label: 'Checking for updates', title: 'Checking GitHub Releases for a new Kim version' }
+    case 'available': return { label: `Download${version}`, title: `Download and restart Kim${version}` }
     case 'downloading': return {
       label: state.percent === undefined ? `Downloading${version}` : `Downloading${version} · ${state.percent}%`,
-      title: `Downloading GooeyPi${version}`,
+      title: `Downloading Kim${version}`,
     }
-    case 'downloaded': return { label: `Restart for${version}`, title: `Restart GooeyPi and install version${version}` }
-    case 'not-available': return { label: 'GooeyPi is up to date', title: 'Check again for a new GooeyPi release' }
+    case 'downloaded': return { label: `Restart for${version}`, title: `Restart Kim and install version${version}` }
+    case 'not-available': return { label: 'Kim is up to date', title: 'Check again for a new Kim release' }
     case 'error': return { label: version ? `Retry update${version}` : 'Retry update', title: state.message ?? 'Update failed — try checking again' }
     case 'unsupported': return { label: 'Automatic updates', title: state.message ?? 'Automatic updates are available in installed builds' }
-    default: return { label: 'Release updates', title: 'Check for a new GooeyPi release' }
+    default: return { label: 'Release updates', title: 'Check for a new Kim release' }
   }
 }
 
@@ -145,22 +145,22 @@ function updateControlCopy(state: AppUpdateState): { label: string; title: strin
 function updateAnnouncement(state: AppUpdateState): string {
   const version = state.version ? ` ${state.version}` : ''
   switch (state.phase) {
-    case 'available': return `GooeyPi update${version} is available`
-    case 'downloading': return `Downloading GooeyPi update${version}`
-    case 'downloaded': return `GooeyPi update${version} is ready to install`
-    case 'error': return `GooeyPi update failed. ${state.message ?? 'Try again.'}`
+    case 'available': return `Kim update${version} is available`
+    case 'downloading': return `Downloading Kim update${version}`
+    case 'downloaded': return `Kim update${version} is ready to install`
+    case 'error': return `Kim update failed. ${state.message ?? 'Try again.'}`
     default: return ''
   }
 }
 
 function updateConfirmCopy(state: AppUpdateState): { title: string; body: string } {
   if (state.phase === 'downloaded') return {
-    title: 'Restart GooeyPi to install the update?',
-    body: 'GooeyPi will close and restart to finish installing the update.',
+    title: 'Restart Kim to install the update?',
+    body: 'Kim will close and restart to finish installing the update.',
   }
   return {
-    title: 'Download and Restart GooeyPi?',
-    body: 'GooeyPi will download the update, close, and restart when it is ready.',
+    title: 'Download and Restart Kim?',
+    body: 'Kim will download the update, close, and restart when it is ready.',
   }
 }
 
@@ -265,7 +265,7 @@ function SidebarView({ projects, sessions, activeProjectId, activeSessionId, act
             className="brand-switcher__trigger"
             aria-haspopup="menu"
             aria-expanded={harnessMenuOpen}
-            aria-label={`Weave Workbench — ${HARNESS_PRODUCT_NAMES[activeHarness]}`}
+            aria-label={`Kim — ${HARNESS_PRODUCT_NAMES[activeHarness]}`}
             title={`当前运行环境：${HARNESS_PRODUCT_NAMES[activeHarness]}`}
             onClick={() => setHarnessMenuOpen((open) => !open)}
           >

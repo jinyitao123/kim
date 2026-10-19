@@ -5,7 +5,7 @@ type Message = string | { one: string; other: string }
 type MessageValues = Record<string, string | number>
 
 const englishCatalog = {
-  'common.reload': 'Reload GooeyPi',
+  'common.reload': 'Reload Kim',
   'nav.projects': 'Workspace folders',
   'nav.activity': 'My tasks',
   'nav.scheduled': 'Scheduled',
@@ -24,7 +24,6 @@ const englishCatalog = {
   'settings.harness': 'Harness',
   'settings.providers': 'Providers',
   'settings.voice': 'Voice',
-  'settings.pets': 'Pets',
   'settings.browser': 'Browser',
   'settings.terminal': 'Terminal',
   'settings.privacy': 'Privacy',
@@ -37,7 +36,7 @@ const englishCatalog = {
   'appearance.theme.dark': 'Dark',
   'appearance.language.title': 'Language',
   'appearance.language.label': 'Interface language',
-  'appearance.language.description': 'Choose the language used in GooeyPi.',
+  'appearance.language.description': 'Choose the language used in Kim.',
   'appearance.language.system': 'System default',
   'appearance.language.english': 'English',
   'appearance.language.chinese': 'Simplified Chinese',
@@ -76,7 +75,6 @@ const simplifiedChineseCatalog: Partial<Record<MessageKey, Message>> = {
   'settings.harness': '运行环境',
   'settings.providers': '服务商',
   'settings.voice': '语音',
-  'settings.pets': '宠物',
   'settings.browser': '浏览器',
   'settings.terminal': '终端',
   'settings.privacy': '隐私',
@@ -89,7 +87,7 @@ const simplifiedChineseCatalog: Partial<Record<MessageKey, Message>> = {
   'appearance.theme.dark': '深色',
   'appearance.language.title': '语言',
   'appearance.language.label': '界面语言',
-  'appearance.language.description': '选择 GooeyPi 界面所使用的语言。',
+  'appearance.language.description': '选择 Kim 界面所使用的语言。',
   'appearance.language.system': '跟随系统',
   'appearance.language.english': '英语',
   'appearance.language.chinese': '简体中文',

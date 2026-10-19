@@ -89,11 +89,11 @@ describe('PluginService discovery', () => {
       ['future-shape', 'project'], ['null-shape', 'project'],
     ] as const) {
       expect(records).toContainEqual(expect.objectContaining({
-        name, location, availability: { available: false, detail: expect.stringContaining('managed outside GooeyPi') },
+        name, location, availability: { available: false, detail: expect.stringContaining('managed outside Kim') },
       }))
     }
     expect(records.find((item) => item.name === 'legacy-scalar')?.description).not.toContain('legacy-owned-value')
-    expect(records.find((item) => item.name === 'command-only')?.description).toContain('Managed outside GooeyPi')
+    expect(records.find((item) => item.name === 'command-only')?.description).toContain('Managed outside Kim')
 
     await expect(service.mutateCapability({ kind: 'mcp', action: 'remove', name: 'legacy-scalar', scope: 'user' }))
       .resolves.toMatchObject({ ok: true })
@@ -591,7 +591,7 @@ describe('PluginService MCP connections', () => {
       { name: 'remote', scope: 'user', type: 'sse', url: 'https://mcp.example/sse' } as never,
       undefined,
       { harness: 'pi', agentName: 'Pi' },
-    )).rejects.toThrow(/managed outside GooeyPi/)
+    )).rejects.toThrow(/managed outside Kim/)
     expect(existsSync(settingsPath)).toBe(false)
   })
 
@@ -602,7 +602,7 @@ describe('PluginService MCP connections', () => {
     writeFileSync(settingsPath, original)
 
     await expect(updateMcpState(settingsPath, { name: 'local', scope: 'user', enabled: false }))
-      .resolves.toMatchObject({ ok: false, reason: 'blocked', output: expect.stringContaining('Prime Agent MCP servers are managed outside GooeyPi') })
+      .resolves.toMatchObject({ ok: false, reason: 'blocked', output: expect.stringContaining('Prime Agent MCP servers are managed outside Kim') })
     expect(readFileSync(settingsPath, 'utf8')).toBe(original)
   })
 
@@ -623,7 +623,7 @@ describe('PluginService MCP connections', () => {
       { type: 'stdio', command: 'mcp-local', url: 42 },
     ] as const) {
       await expect(service.connectMcp({ name: 'remote', scope: 'user', ...input } as never))
-        .rejects.toThrow('Network MCP servers are managed outside GooeyPi')
+        .rejects.toThrow('Network MCP servers are managed outside Kim')
       expect(existsSync(settingsPath)).toBe(false)
     }
   })
@@ -850,17 +850,17 @@ describe('PluginService MCP connections', () => {
       enabled: true,
       availability: {
         available: false,
-        detail: expect.stringContaining('managed outside GooeyPi'),
+        detail: expect.stringContaining('managed outside Kim'),
       },
     })
 
     const original = readFileSync(settingsPath, 'utf8')
     await expect(service.setMcpEnabled({ name: 'remote', scope: 'user', enabled: false }))
-      .resolves.toMatchObject({ ok: false, reason: 'blocked', output: expect.stringContaining('managed outside GooeyPi') })
+      .resolves.toMatchObject({ ok: false, reason: 'blocked', output: expect.stringContaining('managed outside Kim') })
     await expect(service.mutateCapability({ kind: 'mcp', action: 'enable', name: 'remote', scope: 'user' }))
-      .resolves.toMatchObject({ ok: false, reason: 'blocked', output: expect.stringContaining('managed outside GooeyPi') })
+      .resolves.toMatchObject({ ok: false, reason: 'blocked', output: expect.stringContaining('managed outside Kim') })
     await expect(service.mutateCapability({ kind: 'mcp', action: 'disable', name: 'remote', scope: 'user' }))
-      .resolves.toMatchObject({ ok: false, reason: 'blocked', output: expect.stringContaining('managed outside GooeyPi') })
+      .resolves.toMatchObject({ ok: false, reason: 'blocked', output: expect.stringContaining('managed outside Kim') })
     expect(readFileSync(settingsPath, 'utf8')).toBe(original)
   })
 
@@ -888,9 +888,9 @@ describe('PluginService MCP connections', () => {
     const service = new PluginService(null, async (path) => resolve(path), { agentDir })
 
     await expect(service.connectMcp({ name: 'remote', scope: 'user', type: 'http', url: 'https://mcp.example/mcp' }))
-      .rejects.toThrow('managed outside GooeyPi')
+      .rejects.toThrow('managed outside Kim')
     await expect(service.connectMcp({ name: 'local', scope: 'user', type: 'stdio', command: 'npx' }))
-      .rejects.toThrow('Prime Agent MCP servers are managed outside GooeyPi')
+      .rejects.toThrow('Prime Agent MCP servers are managed outside Kim')
     expect(existsSync(join(agentDir, 'settings.json'))).toBe(false)
   })
 
@@ -1096,7 +1096,7 @@ describe('PluginService MCP connections', () => {
     writeFileSync(join(agentDir, 'mcp.json'), JSON.stringify({ mcpServers: { existing: { type: 'stdio', command: 'safe' } } }))
     const service = new PluginService(null, async (path) => resolve(path), { agentDir, harness: 'pi' })
 
-    await expect(service.connectMcp({ name: 'secret', scope: 'user', type: 'http', url: 'https://token@example.test/mcp' })).rejects.toThrow(/managed outside GooeyPi/)
+    await expect(service.connectMcp({ name: 'secret', scope: 'user', type: 'http', url: 'https://token@example.test/mcp' })).rejects.toThrow(/managed outside Kim/)
     const duplicate = await service.connectMcp({ name: 'existing', scope: 'user', type: 'stdio', command: 'other' })
     expect(duplicate.ok).toBe(false)
     expect(JSON.parse(readFileSync(join(agentDir, 'mcp.json'), 'utf8')).mcpServers.existing.command).toBe('safe')
@@ -1290,7 +1290,7 @@ describe('PluginService Pi parity', () => {
     expect(catalog.skills).toContainEqual(expect.objectContaining({ id: 'gooeypi-pi-mcp', name: 'Pi MCP Adapter', enabled: false }))
     expect(catalog.skills).toContainEqual(expect.objectContaining({
       name: 'docs', kind: 'mcp', location: 'user',
-      availability: { available: false, detail: expect.stringContaining('managed outside GooeyPi') },
+      availability: { available: false, detail: expect.stringContaining('managed outside Kim') },
     }))
     expect(catalog.skills).toContainEqual(expect.objectContaining({ name: 'files', kind: 'mcp', location: 'project' }))
     // settings.json is not an MCP source for pi; only mcp.json entries surface.
@@ -1320,9 +1320,9 @@ describe('PluginService Pi parity', () => {
     const service = new PluginService(null, async (path) => realpathSync(path), { agentDir, harness: 'pi' })
 
     await expect(service.connectMcp({ name: 'docs:remote', scope: 'user', type: 'http', url: 'https://docs.example/mcp', auth: 'oauth' }))
-      .rejects.toThrow(/managed outside GooeyPi/)
+      .rejects.toThrow(/managed outside Kim/)
     await expect(service.connectMcp({ name: 'stream', scope: 'user', type: 'sse', url: 'https://docs.example/sse' } as never))
-      .rejects.toThrow(/managed outside GooeyPi/)
+      .rejects.toThrow(/managed outside Kim/)
     const user = await service.connectMcp({ name: 'local', scope: 'user', type: 'stdio', command: 'mcp-local' })
     const projectResult = await service.connectMcp({ name: 'files', scope: 'project', projectPath: project, type: 'stdio', command: 'npx', args: ['-y', 'server'] })
     await expect(service.connectMcp({ name: 'invalid name', scope: 'user', type: 'stdio', command: 'npx' })).rejects.toThrow(/unsupported characters/)

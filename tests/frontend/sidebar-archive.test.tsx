@@ -134,7 +134,7 @@ describe('sidebar project context menu', () => {
     expect(update?.querySelector('.lucide-download')).not.toBeNull()
     await press(update!)
     expect(onUpdateAction).not.toHaveBeenCalled()
-    expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Download and Restart GooeyPi?')
+    expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Download and Restart Kim?')
 
     const yes = [...document.body.querySelectorAll<HTMLButtonElement>('.modal__footer button')].find((button) => button.textContent === 'Yes')
     expect(yes).toBeDefined()

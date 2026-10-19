@@ -156,10 +156,6 @@ const api: PrimeWorkApi = {
     testSelfHosted: (request) => invoke('voice:test-self-hosted', request),
     executeTool: (request, harness) => invoke('voice:execute-tool', request, harness),
   },
-  pets: {
-    list: () => invoke('pets:list'),
-    sprite: (id) => invoke('pets:sprite', id),
-  },
   terminal: {
     create: (options) => invoke('terminal:create', options),
     bindSession: (terminalId, sessionPath) => invoke('terminal:bind-session', terminalId, sessionPath),

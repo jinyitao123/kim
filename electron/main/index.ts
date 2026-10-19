@@ -22,7 +22,6 @@ import { beginProcessShutdown, runProcess, stopChildProcesses } from './process-
 import { PluginService, beginPluginDiscoveryShutdown } from './plugins'
 import type { PrimeProviderService } from './providers'
 import { PACKAGED_RENDERER_URL, PACKAGED_SMOKE_READY_EVENT, packagedSmokeMarker, packagedSmokeMarkerPath, serializePackagedSmokeMarker } from './packaged-smoke'
-import { PetService } from './pets'
 import { ProjectService } from './projects'
 import { SettingsService } from './settings-schedules'
 import { ScheduledRunExecutor } from './schedules/executor'
@@ -242,10 +241,10 @@ export function shutdownPrompt(work: ActiveShutdownWork): ShutdownPrompt | null 
       ? 'An agent run is still in progress and will be stopped.'
       : `${work.runningAgents} agent runs are still in progress and will be stopped.`)
   }
-  if (work.activeSchedules) details.push('Scheduled automations will not run while GooeyPi is closed.')
+  if (work.activeSchedules) details.push('Scheduled automations will not run while Kim is closed.')
   if (details.length === 0) return null
   return {
-    message: work.runningAgents > 0 ? 'Close GooeyPi while an agent is running?' : 'Close GooeyPi?',
+    message: work.runningAgents > 0 ? 'Close Kim while an agent is running?' : 'Close Kim?',
     detail: details.join(' '),
   }
 }
@@ -253,11 +252,11 @@ export function shutdownPrompt(work: ActiveShutdownWork): ShutdownPrompt | null 
 export async function confirmAppClose(window: BrowserWindow | null, prompt: ShutdownPrompt): Promise<boolean> {
   const options = {
     type: 'warning' as const,
-    buttons: ['Cancel', 'Close GooeyPi'],
+    buttons: ['Cancel', 'Close Kim'],
     defaultId: 0,
     cancelId: 0,
     noLink: true,
-    title: 'GooeyPi',
+    title: 'Kim',
     ...prompt,
   }
   const { response } = window && !window.isDestroyed()
@@ -283,7 +282,7 @@ function requestShutdown(window: BrowserWindow | null, prompt: ShutdownPrompt): 
     shutdownApproved = true
     app.quit()
   }).catch((error: unknown) => {
-    console.error(`GooeyPi close confirmation failed: ${boundedErrorMessage(error)}`)
+    console.error(`Kim close confirmation failed: ${boundedErrorMessage(error)}`)
   }).finally(() => { confirmingShutdown = false })
 }
 
@@ -326,7 +325,7 @@ export function mainWindowChromeOptions(platform: NodeJS.Platform = process.plat
     visualEffectState: 'active',
   }
   if (platform === 'win32') return {
-    // The native caption controls share a dedicated menu row. GooeyPi's own
+    // The native caption controls share a dedicated menu row. Kim's own
     // 52px toolbar remains a separate application surface below it.
     titleBarStyle: 'hidden',
     titleBarOverlay: windowsTitleBarOverlay(theme),
@@ -475,10 +474,10 @@ export interface StartupFailureDialog {
 
 export function startupFailureDialog(error: unknown): StartupFailureDialog | null {
   if (error instanceof StateMigrationError) {
-    return { title: 'GooeyPi state migration failed', detail: boundedErrorMessage(error, 2_048) }
+    return { title: 'Kim state migration failed', detail: boundedErrorMessage(error, 2_048) }
   }
   if (error instanceof StateCompatibilityError) {
-    return { title: 'GooeyPi update required', detail: boundedErrorMessage(error, 2_048) }
+    return { title: 'Kim update required', detail: boundedErrorMessage(error, 2_048) }
   }
   return null
 }
@@ -523,13 +522,13 @@ export async function settleShutdown(
   const watchdogMs = options.watchdogMs ?? 10_000
   const settled = Promise.allSettled(steps).then((results) => {
     for (const result of results) {
-      if (result.status === 'rejected') log(`GooeyPi shutdown step failed: ${boundedErrorMessage(result.reason)}`)
+      if (result.status === 'rejected') log(`Kim shutdown step failed: ${boundedErrorMessage(result.reason)}`)
     }
   })
   let timer: NodeJS.Timeout | undefined
   const watchdog = new Promise<void>((resolve) => {
     timer = setTimeout(() => {
-      log(`GooeyPi shutdown did not finish within ${watchdogMs} ms; quitting anyway`)
+      log(`Kim shutdown did not finish within ${watchdogMs} ms; quitting anyway`)
       resolve()
     }, watchdogMs)
     timer.unref?.()
@@ -551,7 +550,7 @@ function requestWindow(reason: 'activation' | 'second instance' | 'menu bar' | '
     }
     afterOpen?.(window)
   }).catch((error: unknown) => {
-    if (!shutdownStarted) console.error(`GooeyPi failed to open a window after ${reason}: ${boundedErrorMessage(error)}`)
+    if (!shutdownStarted) console.error(`Kim failed to open a window after ${reason}: ${boundedErrorMessage(error)}`)
   })
 }
 
@@ -772,10 +771,6 @@ async function bootstrap(): Promise<void> {
     catalogs: { prime: providers, pi: piCatalog, loom: loomCatalog },
     runProcess,
   })
-  const pets = new PetService({
-    builtInRoot: app.isPackaged ? join(process.resourcesPath, 'pets') : join(app.getAppPath(), 'assets', 'pets'),
-    codexRoot: join(homedir(), '.codex', 'pets'),
-  })
   const browserProfile = session.fromPartition(BROWSER_PARTITION)
   browserProfile.on('will-download', (event, item, owner) => downloads?.handle(event, item, owner, settings.get().browserAskForDownloads))
   const scheduleSkillPath = app.isPackaged
@@ -820,7 +815,7 @@ async function bootstrap(): Promise<void> {
       kind: 'skill', location: 'system', path: scheduleSkillPath, enabled: true,
     }, {
       id: 'gooeypi-ask-user', name: 'Ask user',
-      description: 'Ask focused multiple-choice questions in the GooeyPi app across Prime Agent and Pi Work.',
+      description: 'Ask focused multiple-choice questions in the Kim app across Prime Agent and Pi Work.',
       kind: 'extension', location: 'system', path: askUserExtensionPath, enabled: stateStore.getSettings().askUserEnabled,
     }, {
       id: 'prime-work-browser', name: 'Browser',
@@ -841,7 +836,7 @@ async function bootstrap(): Promise<void> {
       kind: 'extension', location: 'system', path: workBrowserExtensionPath, enabled: stateStore.getSettings().browserEnabled,
     }, {
       id: 'gooeypi-ask-user', name: 'Ask user',
-      description: 'Ask focused multiple-choice questions in the GooeyPi app from Pi Work.',
+      description: 'Ask focused multiple-choice questions in the Kim app from Pi Work.',
       kind: 'extension', location: 'system', path: askUserExtensionPath, enabled: stateStore.getSettings().askUserEnabled,
     }, await computerUseSkill()],
   })
@@ -1097,7 +1092,7 @@ async function bootstrap(): Promise<void> {
     ]
     for (const [name, bridge, token] of claims) {
       try { bridge.revoke(token) } catch (error) {
-        console.error(`GooeyPi failed to revoke ${name} runtime capability: ${boundedErrorMessage(error)}`)
+        console.error(`Kim failed to revoke ${name} runtime capability: ${boundedErrorMessage(error)}`)
       }
     }
   }
@@ -1127,7 +1122,7 @@ async function bootstrap(): Promise<void> {
     browser: workBrowserExtensionPath,
     askUser: askUserExtensionPath,
   }
-  // Pi Work receives the shared capability surface through the GooeyPi extensions.
+  // Pi Work receives the shared capability surface through the Kim extensions.
   piManager.setRuntimeEnvironmentProvider((scope) => {
     assertAccountScopeReady()
     return {
@@ -1320,7 +1315,7 @@ async function bootstrap(): Promise<void> {
   }
   trustedRendererUrl = resolveRendererUrl()
   ipc = registerIpc({
-    meta, refreshHarnesses, projects, checkouts, sessions, agents, terminals, git, plugins, providers, settings, updates, enterprise, cuaDriver, heartbeats, schedules, browser: browserService, voice, pets,
+    meta, refreshHarnesses, projects, checkouts, sessions, agents, terminals, git, plugins, providers, settings, updates, enterprise, cuaDriver, heartbeats, schedules, browser: browserService, voice,
     popupApplicationMenu, setTitleBarTheme, ...connectionImport,
     enterpriseBridge,
     runAttention: runAttentionService,
@@ -1363,7 +1358,7 @@ async function bootstrap(): Promise<void> {
     }
   })
   installApplicationMenu({
-    appName: 'GooeyPi',
+    appName: 'Kim',
     updatesEnabled: updates.isEnabled(),
     closeWindow: () => {
       const window = mainWindow
@@ -1373,7 +1368,7 @@ async function bootstrap(): Promise<void> {
     checkForUpdates: createManualUpdateCheck(() => updates.check(), async (notification) => {
       await dialog.showMessageBox({
         type: notification.type,
-        title: 'GooeyPi',
+        title: 'Kim',
         message: notification.message,
         detail: notification.detail,
       })
@@ -1454,7 +1449,7 @@ else void app.whenReady().then(async () => {
 }).catch((error: unknown) => {
   const failureDialog = startupFailureDialog(error)
   if (failureDialog) dialog.showErrorBox(failureDialog.title, failureDialog.detail)
-  if (!shutdownStarted) console.error(`GooeyPi failed to start: ${boundedErrorMessage(error)}`)
+  if (!shutdownStarted) console.error(`Kim failed to start: ${boundedErrorMessage(error)}`)
   app.quit()
 })
 
@@ -1504,6 +1499,6 @@ app.on('before-quit', (event) => {
     stopChildProcesses(),
   ]).then(async () => {
     // Await the drain so the final persist lands before the process exits.
-    try { await store?.beginShutdown() } catch (error) { console.error(`GooeyPi store shutdown failed: ${boundedErrorMessage(error)}`) }
+    try { await store?.beginShutdown() } catch (error) { console.error(`Kim store shutdown failed: ${boundedErrorMessage(error)}`) }
   }).finally(() => app.quit())
 })

@@ -27,7 +27,7 @@ async function setup() {
   const root = join(dir, 'project')
   mkdirSync(root)
   runGit(root, 'init', '-q')
-  runGit(root, 'config', 'user.name', 'GooeyPi Test')
+  runGit(root, 'config', 'user.name', 'Kim Test')
   runGit(root, 'config', 'user.email', 'test@example.com')
   writeFileSync(join(root, 'file.txt'), 'base\n')
   runGit(root, 'add', 'file.txt')

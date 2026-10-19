@@ -169,7 +169,7 @@ describe('gooeypi-work-browser extension', () => {
     await bridge.stop()
     await expect(tool('browser_tabs').execute('call-2', { action: 'list' })).rejects.toSatisfy((error: unknown) => {
       const message = String((error as Error).message)
-      expect(message).toContain('GooeyPi browser is not reachable')
+      expect(message).toContain('Kim browser is not reachable')
       expect(message).not.toContain(environment.PRIME_WORK_BROWSER_TOKEN)
       return true
     })

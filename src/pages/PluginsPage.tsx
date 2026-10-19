@@ -6,7 +6,7 @@ import { NETWORK_MCP_UNAVAILABLE_DETAIL } from '@/lib/mcp-policy'
 import { EmptyState, Modal } from '@/components/ui'
 
 const MCP_STDIO_HELP: Record<HarnessId, string> = {
-  prime: 'Prime Agent MCP setup is managed outside GooeyPi.',
+  prime: 'Prime Agent MCP setup is managed outside Kim.',
   pi: 'Pi starts this stdio MCP server through the pi-mcp-adapter extension (pi install npm:pi-mcp-adapter) in each new session.',
   loom: 'Loom starts MCP servers from its mcp.json when each session starts.',
 }
@@ -242,7 +242,7 @@ export function PluginsPage({ harness, skills, warnings, loading, activeProjectP
   }
   const capabilityControl = (skill: SkillRecord) => {
     if (skill.kind === 'mcp' && skill.availability?.available === false) {
-      const external = skill.availability.detail.includes('managed outside GooeyPi')
+      const external = skill.availability.detail.includes('managed outside Kim')
       const label = external ? `Externally managed ${skill.name}` : harness === 'pi' ? `Pi MCP Adapter required for ${skill.name}` : `Unavailable ${skill.name}`
       return <span className="plugin-toggle" role="img" aria-label={label} aria-describedby={capabilityDetailId(skill)}><ShieldCheck aria-hidden="true" size={14}/></span>
     }
@@ -329,7 +329,7 @@ export function PluginsPage({ harness, skills, warnings, loading, activeProjectP
             {addKind === null ? (
               <div className="capability-choice-list">
                 <button type="button" disabled={harness === 'prime' || harness === 'pi' && !piMcpAdapterInstalled} onClick={() => selectAddKind('mcp')}>
-                  <span><Globe2 size={17}/></span><span><strong>Add MCP</strong><small>{harness === 'prime' ? 'Prime MCP setup is managed outside GooeyPi' : harness === 'pi' && !piMcpAdapterInstalled ? 'Enable Pi MCP Adapter first' : 'Add a local stdio server; network servers stay externally managed'}</small></span><ChevronRight size={15}/>
+                  <span><Globe2 size={17}/></span><span><strong>Add MCP</strong><small>{harness === 'prime' ? 'Prime MCP setup is managed outside Kim' : harness === 'pi' && !piMcpAdapterInstalled ? 'Enable Pi MCP Adapter first' : 'Add a local stdio server; network servers stay externally managed'}</small></span><ChevronRight size={15}/>
                 </button>
                 <button type="button" onClick={() => selectAddKind('bundle')}>
                   <span><Package size={17}/></span><span><strong>Add Package</strong><small>{PACKAGE_HELP[harness]}</small></span><ChevronRight size={15}/>
@@ -337,7 +337,7 @@ export function PluginsPage({ harness, skills, warnings, loading, activeProjectP
                 <button type="button" onClick={() => selectAddKind('extension')}>
                   <span><FileCode2 size={17}/></span><span><strong>Add Extension</strong><small>Install one local JavaScript or TypeScript extension module for {HARNESS_SHORT_NAMES[harness]}.</small></span><ChevronRight size={15}/>
                 </button>
-                <p className="capability-compatibility-note"><AlertTriangle size={13}/><span>Not every third-party package, plugin, or extension will work in GooeyPi. If something fails, <button type="button" onClick={() => onOpenExternal(GITHUB_ISSUES_URL)}>create a GitHub issue</button>.</span></p>
+                <p className="capability-compatibility-note"><AlertTriangle size={13}/><span>Not every third-party package, plugin, or extension will work in Kim. If something fails, <button type="button" onClick={() => onOpenExternal(GITHUB_ISSUES_URL)}>create a GitHub issue</button>.</span></p>
               </div>
             ) : addKind === 'bundle' ? (
               <div className="add-tool-form">
@@ -351,11 +351,11 @@ export function PluginsPage({ harness, skills, warnings, loading, activeProjectP
                 <label className="field"><span>Extension file</span><input autoFocus value={source} onChange={(event) => setSource(event.target.value)} placeholder="/absolute/path/to/my-extension.ts"/></label>
                 <small className="field-help">Choose an absolute local <code>.ts</code>, <code>.js</code>, <code>.mjs</code>, or <code>.cjs</code> file. Extensions run with your user permissions.</small>
                 <label className="field"><span>Available in</span><select value={mcpScope} onChange={(event) => setMcpScope(event.target.value as McpScope)}><option value="user">All projects (personal)</option><option value="project" disabled={!activeProjectPath}>Current project</option></select></label>
-                <p className="connection-warning"><ShieldCheck size={13}/> Extension APIs differ between harnesses. GooeyPi installs the file correctly, but CLI-specific UI may not render in the desktop app.</p>
+                <p className="connection-warning"><ShieldCheck size={13}/> Extension APIs differ between harnesses. Kim installs the file correctly, but CLI-specific UI may not render in the desktop app.</p>
               </div>
             ) : (
               <div className="add-tool-form">
-                <p className="modal-intro">Add a local stdio server to pi-mcp-adapter’s configuration. HTTP/SSE servers and OAuth are managed outside GooeyPi.</p>
+                <p className="modal-intro">Add a local stdio server to pi-mcp-adapter’s configuration. HTTP/SSE servers and OAuth are managed outside Kim.</p>
                 <label className="field"><span>Server name</span><input autoFocus value={mcpName} onChange={(event) => setMcpName(event.target.value)} placeholder="my-local-tools"/></label>
                 <p className="field-help">{MCP_STDIO_HELP[harness]}</p>
                 <label className="field"><span>Executable</span><input value={mcpCommand} onChange={(event) => setMcpCommand(event.target.value)} placeholder="npx"/></label>

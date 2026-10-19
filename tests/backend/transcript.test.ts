@@ -34,7 +34,7 @@ describe('session file record tolerance', () => {
   })
 })
 
-describe('GooeyPi agent messages', () => {
+describe('Kim agent messages', () => {
   it('creates and reuses an owner-only signing key in a fresh user-data directory', () => {
     const dir = mkdtempSync(join(tmpdir(), 'prime-work-message-key-'))
     dirs.push(dir)

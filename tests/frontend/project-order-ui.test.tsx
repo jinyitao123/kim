@@ -90,10 +90,6 @@ beforeEach(() => {
       list: vi.fn(async () => []),
       onEvent: vi.fn(() => () => undefined),
     },
-    pets: {
-      list: vi.fn(async () => []),
-      sprite: vi.fn(async () => null),
-    },
     providers: {
       catalog: vi.fn(async () => ({ models: [], providers: [] })),
       saveApiKey: vi.fn(async () => true),

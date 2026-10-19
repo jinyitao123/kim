@@ -93,12 +93,12 @@ export function catalogLimitWarnings(
   const representedProviders = new Set(result.models.map((model) => model.provider)).size
   const warnings: string[] = []
   if (omittedProviders > 0) {
-    warnings.push(`${harnessLabel} returned ${count(result.totalProviderCount)} valid providers; GooeyPi retained ${count(result.providers.length)} sorted by name (${count(omittedProviders)} omitted by the provider limit).`)
+    warnings.push(`${harnessLabel} returned ${count(result.totalProviderCount)} valid providers; Kim retained ${count(result.providers.length)} sorted by name (${count(omittedProviders)} omitted by the provider limit).`)
   }
   if (omittedModels > 0) {
     const modelKind = options.uniqueModels ? 'valid unique models' : 'valid models'
     const representedLabel = representedProviders === 1 ? 'provider' : 'providers'
-    warnings.push(`${harnessLabel} returned ${count(result.totalModelCount)} ${modelKind}; GooeyPi retained ${count(result.models.length)} across ${count(representedProviders)} ${representedLabel} (${count(omittedModels)} omitted by catalog limits: ${count(result.modelsOmittedWithProviders)} with omitted providers and ${count(result.modelsOmittedByModelLimit)} beyond the model limit).`)
+    warnings.push(`${harnessLabel} returned ${count(result.totalModelCount)} ${modelKind}; Kim retained ${count(result.models.length)} across ${count(representedProviders)} ${representedLabel} (${count(omittedModels)} omitted by catalog limits: ${count(result.modelsOmittedWithProviders)} with omitted providers and ${count(result.modelsOmittedByModelLimit)} beyond the model limit).`)
   }
   return warnings
 }

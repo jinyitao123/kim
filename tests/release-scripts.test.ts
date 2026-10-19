@@ -1665,16 +1665,16 @@ describe('post-package verification helpers', () => {
       return { status: 0, stdout: '', stderr: '' }
     }
     const spawn = validSpawn as unknown as Parameters<typeof assertValidAuthenticode>[1]
-    expect(() => assertValidAuthenticode('C:\\release\\GooeyPi.exe', spawn, signerEnvironment)).not.toThrow()
+    expect(() => assertValidAuthenticode('C:\\release\\Kim.exe', spawn, signerEnvironment)).not.toThrow()
     expect(calls).toEqual([
       {
         file: 'powershell.exe',
         args: expect.arrayContaining(['-NoProfile', '-NonInteractive', '-Command']),
-        path: 'C:\\release\\GooeyPi.exe',
+        path: 'C:\\release\\Kim.exe',
       },
     ])
     const invalidSpawn = () => ({ status: 1, stdout: '', stderr: 'NotSigned' })
-    expect(() => assertValidAuthenticode('C:\\release\\GooeyPi.exe', invalidSpawn as unknown as Parameters<typeof assertValidAuthenticode>[1], signerEnvironment)).toThrow(/NotSigned/)
+    expect(() => assertValidAuthenticode('C:\\release\\Kim.exe', invalidSpawn as unknown as Parameters<typeof assertValidAuthenticode>[1], signerEnvironment)).toThrow(/NotSigned/)
   })
 
   test('asserts the expected Authenticode signer instead of any trusted certificate', () => {
@@ -1704,19 +1704,19 @@ describe('post-package verification helpers', () => {
       calls.push({ args, env: options.env })
       return { status: 0, stdout: '', stderr: '' }
     }
-    assertValidAuthenticode('C:\\release\\GooeyPi.exe', spawn as unknown as Parameters<typeof assertValidAuthenticode>[1], {
+    assertValidAuthenticode('C:\\release\\Kim.exe', spawn as unknown as Parameters<typeof assertValidAuthenticode>[1], {
       GOOEYPI_WINDOWS_CERT_SUBJECT: 'CN=Example Ltd',
       GOOEYPI_WINDOWS_CERT_THUMBPRINT: 'a1b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d',
     })
     // The file path and expected signer are passed as environment variables, never
     // interpolated into the script, and a terminating error exits non-zero.
     expect(calls[0].env).toMatchObject({
-      GOOEYPI_SIGNED_FILE: 'C:\\release\\GooeyPi.exe',
+      GOOEYPI_SIGNED_FILE: 'C:\\release\\Kim.exe',
       GOOEYPI_WINDOWS_CERT_SUBJECT: 'CN=Example Ltd',
       GOOEYPI_WINDOWS_CERT_THUMBPRINT: 'A1B2C3D4E5F60718293A4B5C6D7E8F901A2B3C4D',
     })
     const script = calls[0].args.at(-1) as string
-    expect(script).not.toContain('C:\\release\\GooeyPi.exe')
+    expect(script).not.toContain('C:\\release\\Kim.exe')
     expect(script).toContain("$ErrorActionPreference = 'Stop'")
     expect(script).toContain('try {')
     expect(script).toContain('} catch {')

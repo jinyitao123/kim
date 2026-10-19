@@ -135,7 +135,7 @@ const PI_UNSUPPORTED_COMMANDS = new Set([
  * Base pi speaks Prime's request/response envelope, command vocabulary, and
  * event names with no handshake extras: no ready frame, no protocol
  * negotiation, no chunked frames. The Prime-only daemon/heartbeat family is
- * missing; fast mode is supplied by GooeyPi's bundled compatibility extension.
+ * missing; fast mode is supplied by Kim's bundled compatibility extension.
  */
 export const PI_RPC_ADAPTER: HarnessRpcAdapter = {
   id: 'pi',

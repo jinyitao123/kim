@@ -254,7 +254,7 @@ function canAccessPath(candidate: string, mode: number): boolean {
 /**
  * Resolves official Windows npm shims declared on harness descriptors without
  * running cmd.exe. npm puts the package entry point below the shim directory,
- * so GooeyPi can invoke that fixed JavaScript file with a validated Node
+ * so Kim can invoke that fixed JavaScript file with a validated Node
  * executable and keep shell=false.
  */
 export function prepareExecutableSpawn(

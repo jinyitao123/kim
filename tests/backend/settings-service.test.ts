@@ -49,9 +49,6 @@ describe('SettingsService.update', () => {
       piDisabledModels: ['openai/gpt-5.6-codex'],
       lastSelectedModels: { prime: 'openai/gpt-5.6-sol', pi: '' },
       activeHarness: 'pi',
-      petEnabled: true,
-      petId: 'codex/rocky',
-      petSize: 65,
       voiceTranscriptionProvider: 'groq',
       voiceOpenAiLiveTranscriptionModel: 'gpt-realtime-whisper',
       voiceOpenAiTranscriptionModel: 'gpt-4o-mini-transcribe',
@@ -73,7 +70,7 @@ describe('SettingsService.update', () => {
       telemetry: false, askUserEnabled: false, disabledProviders: ['openai', 'google'], disabledModels: ['openai/gpt-5.6'],
       piDisabledModels: ['openai/gpt-5.6-codex'],
       lastSelectedModels: { prime: 'openai/gpt-5.6-sol', pi: '' },
-      activeHarness: 'pi', petEnabled: true, petId: 'codex/rocky', petSize: 65,
+      activeHarness: 'pi',
       voiceTranscriptionProvider: 'groq', voiceSelfHostedUrl: 'https://speech.example.test/v1', voiceSelfHostedModel: 'nvidia/parakeet-tdt-0.6b-v3', voiceRealtimeVoice: 'cedar',
     })
     expect(service.get()).toEqual(next)
@@ -122,8 +119,6 @@ describe('SettingsService.update', () => {
     await expect(service.update({ lastSelectedModels: { prime: '', pi: '', hostile: 'openai/gpt' } })).rejects.toThrow(/not supported/)
     await expect(service.update({ activeHarness: 'codex' })).rejects.toThrow(/Invalid harness/)
     await expect(service.update({ activeHarness: 'omp' } as never)).rejects.toThrow(/Invalid harness/)
-    await expect(service.update({ petId: '../escape' })).rejects.toThrow(/Invalid pet id/)
-    await expect(service.update({ petSize: 49 })).rejects.toThrow(/integer from 50 to 125/)
     await expect(service.update({ voiceTranscriptionProvider: 'carrier-pigeon' })).rejects.toThrow(/Invalid voice transcription provider/)
     await expect(service.update({ voiceRealtimeModel: '../bad model' })).rejects.toThrow(/not valid/)
     await expect(service.update({ voiceSelfHostedUrl: 'ftp://speech.example.test' })).rejects.toThrow(/scheme/)

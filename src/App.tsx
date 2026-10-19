@@ -54,7 +54,6 @@ const CommandPalette = lazy(() => import('@/components/CommandPalette').then((mo
 const ExtensionUiModal = lazy(() => import('@/components/ExtensionUiModal').then((module) => ({ default: module.ExtensionUiModal })))
 const ProviderAuthModal = lazy(() => import('@/components/ProviderAuthModal').then((module) => ({ default: module.ProviderAuthModal })))
 const VoiceOrb = lazy(() => import('@/components/VoiceOrb').then((module) => ({ default: module.VoiceOrb })))
-const DesktopPet = lazy(() => import('@/components/DesktopPet').then((module) => ({ default: module.DesktopPet })))
 const ProjectsPage = lazy(() => import('@/pages/ProjectsPage').then((module) => ({ default: module.ProjectsPage })))
 const ActivityPage = lazy(() => import('@/pages/ActivityPage').then((module) => ({ default: module.ActivityPage })))
 const ScheduledPage = lazy(() => import('@/pages/ScheduledPage').then((module) => ({ default: module.ScheduledPage })))
@@ -123,8 +122,6 @@ export default function App() {
   const [browserNavigationRequest, setBrowserNavigationRequest] = useState<{ id: number; url: string }>()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [voiceOrbOpen, setVoiceOrbOpen] = useState(false)
-  const [focusPetVoiceControl, setFocusPetVoiceControl] = useState(false)
-  const [restorePetVoiceFocus, setRestorePetVoiceFocus] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [workOverview, setWorkOverview] = useState<EnterpriseWorkOverview>()
   const [workLoading, setWorkLoading] = useState(false)
@@ -278,8 +275,6 @@ export default function App() {
   const activeHarness = settingsState.settings.activeHarness
   const selectHarness = useCallback((harness: HarnessId) => {
     setVoiceOrbOpen(false)
-    setFocusPetVoiceControl(false)
-    setRestorePetVoiceFocus(false)
     void settingsState.updateSettings({ activeHarness: harness })
   }, [settingsState.updateSettings])
   const browserAnnotations = useBrowserAnnotations()
@@ -1013,10 +1008,7 @@ export default function App() {
     [workspace.pendingQueuedPrompts],
   )
   const toggleVoice = useCallback(() => {
-    const nextOpen = !voiceOrbOpen
-    setFocusPetVoiceControl(nextOpen)
-    setRestorePetVoiceFocus(false)
-    setVoiceOrbOpen(nextOpen)
+    setVoiceOrbOpen(!voiceOrbOpen)
   }, [voiceOrbOpen])
   useEffect(() => {
     if (!bridge || busy || externalSessionRunning || submitting || queuedFlushRef.current || queuedMessages.length === 0) return
@@ -1053,9 +1045,9 @@ export default function App() {
     : view === 'activity' ? <ActivityPage sessions={sessions} projects={projects} clearedActivity={clearedActivity} onOpen={selectSession} onClear={clearActivity} />
     : view === 'scheduled' ? <ScheduledPage harness={activeHarness} schedules={schedules} nativeHeartbeats={activeHarness === 'prime' ? heartbeats : []} projects={projects} sessions={sessions} models={provider.catalog?.models ?? EMPTY_MODELS} lastSelectedModel={provider.model} error={scheduleError} initialProjectId={activeProject?.id} initialSessionId={activeSession?.id} selectedScheduleId={scheduleFocusId} onCreate={createSchedule} onUpdate={updateSchedule} onPause={(id: string) => mutateSchedule(() => bridge!.schedules.pause(id))} onResume={(id: string) => mutateSchedule(() => bridge!.schedules.resume(id))} onDelete={(id: string) => mutateSchedule(() => bridge!.schedules.delete(id))} onRunNow={(id: string) => mutateSchedule(() => bridge!.schedules.runNow(id))} onPreview={async (timing: ScheduleTiming) => bridge ? bridge.schedules.preview(timing, 3) : { timing, occurrences: [] }} onOpenSession={openScheduledSession} onManageHeartbeat={manageHeartbeat} />
     : view === 'plugins' ? <PluginsPage harness={activeHarness} skills={pluginSkills.skills} warnings={pluginSkills.warnings} loading={pluginSkills.loading} activeProjectPath={activeProject?.primaryFolder} askUserEnabled={settingsState.settings.askUserEnabled} onSetAskUserEnabled={(enabled) => settingsState.updateSettings({ askUserEnabled: enabled })} browserEnabled={settingsState.settings.browserEnabled} onSetBrowserEnabled={(enabled) => settingsState.updateSettings({ browserEnabled: enabled })} computerUseEnabled={settingsState.settings.computerUseEnabled} onSetComputerUseEnabled={(enabled) => settingsState.updateSettings({ computerUseEnabled: enabled })} onOpenExternal={openExternal} onRefresh={pluginSkills.refresh} onInstall={installSkill} onInstallExtension={installExtension} onSetMcpSupport={setMcpSupport} onConnectMcp={connectMcp} onSetMcpEnabled={setMcpEnabled} onMutateCapability={mutateCapability} />
-    : view === 'settings' ? <SettingsPage initialSection={settingsSectionRequest.section} initialSectionRequestId={settingsSectionRequest.id} settings={settingsState.settings} meta={meta} providerCatalog={provider.catalog} voice={bridge?.voice ?? null} pets={bridge?.pets ?? null} enterpriseSession={enterpriseSession} onEnterpriseSignIn={signIn} onEnterpriseCancelSignIn={cancelSignIn} onEnterpriseReopenSignIn={reopenSignIn} onEnterpriseSignOut={signOut} onClose={() => navigate('session')} onUpdate={settingsState.updateSettings} onRefreshHarnesses={refreshDetectedHarnesses} onRefreshProviders={() => provider.refresh(true)} onSaveProviderApiKey={provider.saveApiKey} onLogoutProvider={provider.logout} onSetProviderEnabled={provider.setEnabled} onSetAllProvidersEnabled={provider.setAllEnabled} onSetAllProvidersDisabled={provider.setAllDisabled} onSetModelEnabled={provider.setModelEnabled} onStartProviderOAuth={provider.startOAuth} onResetBrowser={async () => {
+    : view === 'settings' ? <SettingsPage initialSection={settingsSectionRequest.section} initialSectionRequestId={settingsSectionRequest.id} settings={settingsState.settings} meta={meta} providerCatalog={provider.catalog} voice={bridge?.voice ?? null} enterpriseSession={enterpriseSession} onEnterpriseSignIn={signIn} onEnterpriseCancelSignIn={cancelSignIn} onEnterpriseReopenSignIn={reopenSignIn} onEnterpriseSignOut={signOut} onClose={() => navigate('session')} onUpdate={settingsState.updateSettings} onRefreshHarnesses={refreshDetectedHarnesses} onRefreshProviders={() => provider.refresh(true)} onSaveProviderApiKey={provider.saveApiKey} onLogoutProvider={provider.logout} onSetProviderEnabled={provider.setEnabled} onSetAllProvidersEnabled={provider.setAllEnabled} onSetAllProvidersDisabled={provider.setAllDisabled} onSetModelEnabled={provider.setModelEnabled} onStartProviderOAuth={provider.startOAuth} onResetBrowser={async () => {
         if (!bridge) throw new Error('Browser data can only be cleared in the desktop app.')
-        if (!await bridge.settings.resetBrowserData()) { const error = new Error('GooeyPi could not clear all browser data. Close active downloads and try again.'); reportError(error); throw error }
+        if (!await bridge.settings.resetBrowserData()) { const error = new Error('Kim could not clear all browser data. Close active downloads and try again.'); reportError(error); throw error }
         setBrowserGeneration((value) => value + 1)
       }} onOpenDocs={() => openExternal(HARNESS_PROVIDER_DOCS[activeHarness])} /> : null
 
@@ -1084,8 +1076,7 @@ export default function App() {
           {inspectorVisible ? <button type="button" className="panel-scrim panel-scrim--inspector" aria-label="Close inspector" onClick={toggleInspector} /> : null}
       </div> : <Suspense fallback={<LoadingPanel label={view} />}>{page}</Suspense>}</div>
     </div>
-    {voiceOrbOpen && bridge ? <Suspense fallback={null}><VoiceOrb voice={bridge.voice} harness={activeHarness} onClose={() => { setFocusPetVoiceControl(false); setVoiceOrbOpen(false); setRestorePetVoiceFocus(settingsState.settings.petEnabled) }} onTaskStarted={handleVoiceTaskStarted} pet={{ pets: bridge.pets, petId: settingsState.settings.petId, petSize: settingsState.settings.petSize, agentBusy: busy, reduceMotion: settingsState.settings.reduceMotion }} focusPetControl={focusPetVoiceControl} onPetControlFocused={() => setFocusPetVoiceControl(false)} /></Suspense> : null}
-    {settingsState.settings.petEnabled && bridge && !voiceOrbOpen ? <Suspense fallback={null}><DesktopPet pets={bridge.pets} petId={settingsState.settings.petId} petSize={settingsState.settings.petSize} agentBusy={busy} voiceActive={false} reduceMotion={settingsState.settings.reduceMotion} focusVoiceControl={restorePetVoiceFocus} onVoiceControlFocused={() => setRestorePetVoiceFocus(false)} onDismiss={() => { setRestorePetVoiceFocus(false); void settingsState.updateSettings({ petEnabled: false }) }} onOpenVoice={() => { setRestorePetVoiceFocus(false); setFocusPetVoiceControl(true); setVoiceOrbOpen(true) }} /></Suspense> : null}
+    {voiceOrbOpen && bridge ? <Suspense fallback={null}><VoiceOrb voice={bridge.voice} harness={activeHarness} onClose={() => setVoiceOrbOpen(false)} onTaskStarted={handleVoiceTaskStarted} /></Suspense> : null}
     {paletteOpen ? <Suspense fallback={null}><CommandPalette open onClose={() => setPaletteOpen(false)} onNavigate={navigate} onNewSession={newSession} onToggleSidebar={toggleSidebar} onToggleTerminal={toggleTerminal} onOpenBrowser={openBrowser} platform={platform} /></Suspense> : null}
     {extension.extensionUi ? <Suspense fallback={<LoadingPanel label="request" />}><ExtensionUiModal request={extension.extensionUi.request} onRespond={(response) => void extension.respondToExtensionUi(response)} platform={platform} /></Suspense> : null}
     {provider.authEvent ? <Suspense fallback={<LoadingPanel label="provider login" />}><ProviderAuthModal event={provider.authEvent} onOpen={openExternal} onRespond={provider.respondOAuth} onCancel={provider.cancelOAuth} /></Suspense> : null}

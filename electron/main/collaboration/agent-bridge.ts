@@ -142,7 +142,7 @@ function cursorFor(session: SessionRecord, messages: CollaborationMessage[], liv
 /**
  * App-owned session collaboration for all harnesses. Session files remain
  * read-only: reads use each harness's bounded SessionService, while writes are
- * delivered through a live runtime owned by this GooeyPi process (waking an
+ * delivered through a live runtime owned by this Kim process (waking an
  * authorized saved target through the normal manager when needed).
  */
 export class AgentCollaborationBridge extends CapabilityBridge {
@@ -326,7 +326,7 @@ export class AgentCollaborationBridge extends CapabilityBridge {
     if (!created) {
       this.pendingRuntimeTokens.delete(runtime.runtimeId)
       await manager.stop(runtime.runtimeId).catch(() => false)
-      throw new Error('The harness created a runtime but its session is not yet readable from GooeyPi')
+      throw new Error('The harness created a runtime but its session is not yet readable from Kim')
     }
     return {
       created: true,

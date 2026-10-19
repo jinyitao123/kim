@@ -5,7 +5,7 @@ import type { WorkExtensionApi as AskUserExtensionApi } from '../../assets/exten
 import type { WorkExtensionApi as CollaborationExtensionApi } from '../../assets/extensions/gooeypi-work-collaboration'
 
 /**
- * Pi host simulation for shared GooeyPi extensions.
+ * Pi host simulation for shared Kim extensions.
  * Extensions must fall back to resolving schema builders from the host's
  * `typebox` package (pi's loader aliases that specifier to its bundled copy;
  * under vitest it resolves from node_modules) and register the same tool

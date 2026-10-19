@@ -206,7 +206,7 @@ describe('workspace MCP command policy', () => {
 
     expect(agentStart).not.toHaveBeenCalled()
     expect(agentCommand).not.toHaveBeenCalled()
-    const message = `Network MCP authentication is managed outside GooeyPi. Use ${agentName} directly to sign in to ${server}.`
+    const message = `Network MCP authentication is managed outside Kim. Use ${agentName} directly to sign in to ${server}.`
     expect(setToast).toHaveBeenNthCalledWith(1, message)
     expect(setToast).toHaveBeenNthCalledWith(2, `${message} The command and attachments were not sent.`)
   })

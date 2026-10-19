@@ -235,7 +235,7 @@ export function Modal({ title, children, onClose, footer }: { title: string; chi
 
 export function WorkbenchMark({ size = 24 }: { size?: number }) {
   return (
-    <span className="workbench-mark" style={{ width: size, height: size }} role="img" aria-label="Weave Workbench">
+    <span className="workbench-mark" style={{ width: size, height: size }} role="img" aria-label="Kim">
       <img src={workbenchIcon} alt="" aria-hidden="true" />
     </span>
   )

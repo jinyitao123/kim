@@ -330,7 +330,7 @@ function addMcpSettingsMetadata(
       const transport = definition.type === 'sse' ? 'SSE' : 'HTTP'
       output.push({
         id: idFor('mcp', location, name), name: displayName,
-        description: `${transport} MCP server at ${origin}. Managed outside GooeyPi.`,
+        description: `${transport} MCP server at ${origin}. Managed outside Kim.`,
         kind: 'mcp', location, enabled, source: origin, ...definitionIdentity,
         availability: { available: false, detail: NETWORK_MCP_UNAVAILABLE_DETAIL },
       })
@@ -343,7 +343,7 @@ function addMcpSettingsMetadata(
           : undefined
       output.push({
         id: idFor('mcp', location, name), name: displayName,
-        description: `Local stdio MCP server (${command})${harness === 'prime' ? '. Managed outside GooeyPi.' : ''}`,
+        description: `Local stdio MCP server (${command})${harness === 'prime' ? '. Managed outside Kim.' : ''}`,
         kind: 'mcp', location, enabled, source: command, ...definitionIdentity,
         ...(availability ? { availability } : {}),
       })

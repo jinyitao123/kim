@@ -5,7 +5,6 @@ import type { GitService } from './git'
 import type { CuaDriverService } from './cua-driver'
 import type { ModelCatalogProvider } from './model-catalog'
 import type { PluginService } from './plugins'
-import type { PetService } from './pets'
 import type { PrimeProviderService } from './providers'
 import { ProjectAccountScopeChangedError, type ProjectService } from './projects'
 import type { CheckoutService } from './checkouts'
@@ -57,7 +56,6 @@ interface Services {
   schedules: AutomationService
   browser: AgentBrowserService
   voice: VoiceService
-  pets: PetService
   /** Pi Work counterparts; always constructed, even when the pi CLI is absent. */
   pi: HarnessServices
   /** Loom Work counterparts; always constructed, even when the loom executable is absent. */
@@ -585,8 +583,6 @@ export function registerIpc(services: Services, expectedRendererUrl: string): Ip
   handle('voice:test-self-hosted', (_event, request) => services.voice.testSelfHosted(request))
   handle('voice:execute-tool', (_event, request, harness) => services.voice.executeTool(request, requireHarness(harness)))
 
-  handle('pets:list', () => services.pets.list())
-  handle('pets:sprite', (_event, id) => services.pets.sprite(id))
 
   handle('terminal:create', (event, options) => services.terminals.create(event.sender, options))
   handle('terminal:bind-session', (event, terminalId, sessionPath) => services.terminals.bindSession(event.sender, terminalId, sessionPath))

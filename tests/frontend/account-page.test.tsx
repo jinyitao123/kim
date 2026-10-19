@@ -24,7 +24,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
 })
 
-describe('GooeyPi enterprise account entry', () => {
+describe('Kim enterprise account entry', () => {
   const signedOut: EnterpriseSession = { version: '1', status: 'signed-out', storage: 'session-only', environment: { origin: 'http://forge.example.test', secure: false } }
   const awaitingApproval: EnterpriseSession = { ...signedOut, signIn: { userCode: 'WXYZ2345', verificationUri: 'http://forge.example.test/_console/auth/device?user_code=WXYZ2345', expiresAt: '2026-10-11T08:30:00.000Z' } }
   const noop = async () => undefined

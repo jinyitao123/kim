@@ -21,7 +21,7 @@ interface ProviderSettingsProps {
 }
 
 function authDescription(provider: PrimeProviderDescriptor): string {
-  if (!provider.configured) return provider.authMethod === 'external' ? 'Uses credentials configured outside GooeyPi' : 'Not connected'
+  if (!provider.configured) return provider.authMethod === 'external' ? 'Uses credentials configured outside Kim' : 'Not connected'
   const source = provider.authSource === 'environment' ? provider.authLabel ? `Environment · ${provider.authLabel}` : 'Environment'
     : provider.authSource === 'prime_cli' ? 'Prime CLI account'
       : provider.authSource === 'models_json_key' || provider.authSource === 'models_json_command' ? 'models.json'
@@ -119,7 +119,7 @@ export function ProviderSettings({ harness = 'prime', catalog, onRefresh, onSave
   return (
     <section className="settings-group provider-settings">
       <div className="settings-group__heading"><h2>{agentName} catalogue</h2><div className="provider-heading-actions">{catalog && disabledCount < providerCount ? <button type="button" className="button button--danger" disabled={Boolean(busyProvider)} onClick={() => void disableAll()}>{externalAuth ? 'Hide all' : 'Disable all'}</button> : null}{disabledCount ? <button type="button" className="button" disabled={Boolean(busyProvider)} onClick={() => void enableAll()}>{externalAuth ? 'Show all' : 'Enable all'}</button> : null}<button type="button" className="button button--icon" aria-label="Refresh providers" disabled={Boolean(busyProvider)} onClick={() => void run('refresh', onRefresh)}><RefreshCw size={13} /></button></div></div>
-      <div className="provider-catalog-summary"><strong>{catalog ? `${providerCount.toLocaleString()} providers · ${modelCount.toLocaleString()} models` : 'Loading provider catalogue…'}</strong>{catalog ? <small>{externalAuth ? `${availableModelCount.toLocaleString()} models are shown in GooeyPi; ${agentName} checks credentials when you launch one` : `${availableModelCount.toLocaleString()} models are available with your current ${agentName} credentials`}</small> : null}</div>
+      <div className="provider-catalog-summary"><strong>{catalog ? `${providerCount.toLocaleString()} providers · ${modelCount.toLocaleString()} models` : 'Loading provider catalogue…'}</strong>{catalog ? <small>{externalAuth ? `${availableModelCount.toLocaleString()} models are shown in Kim; ${agentName} checks credentials when you launch one` : `${availableModelCount.toLocaleString()} models are available with your current ${agentName} credentials`}</small> : null}</div>
       {catalog?.warning ? <p className="provider-catalog-warning" role="status">{catalog.warning}</p> : null}
       <div className="provider-catalog-tabs" role="tablist" aria-label="Provider catalogue view">
         <button type="button" role="tab" aria-selected={view === 'providers'} className={view === 'providers' ? 'is-active' : ''} onClick={() => { setView('providers'); setQuery('') }}>Providers <span>{providerCount.toLocaleString()}</span></button>

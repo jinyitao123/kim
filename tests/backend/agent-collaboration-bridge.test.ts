@@ -350,7 +350,7 @@ describe('AgentCollaborationBridge', () => {
     const response = await call('create', { prompt: '/mcp login notion' })
 
     expect(response.status).toBe(400)
-    expect(response.body.error).toContain('Network MCP authentication is managed outside GooeyPi')
+    expect(response.body.error).toContain('Network MCP authentication is managed outside Kim')
     expect(primeManager.start).not.toHaveBeenCalled()
   })
 
@@ -360,7 +360,7 @@ describe('AgentCollaborationBridge', () => {
     const response = await call('send', { target_session_id: target.id, message: '/mcp login notion' })
 
     expect(response.status).toBe(400)
-    expect(response.body.error).toContain('Network MCP authentication is managed outside GooeyPi')
+    expect(response.body.error).toContain('Network MCP authentication is managed outside Kim')
     expect(primeManager.start).not.toHaveBeenCalled()
     expect(primeManager.command).not.toHaveBeenCalled()
   })

@@ -371,9 +371,9 @@ describe('Prime provider adapter', () => {
     internals.authStorage.set = set
     internals.authStorage.logout = logout
 
-    await expect(providerService.startOAuth('mcp:notion')).rejects.toThrow('Network MCP authentication is managed outside GooeyPi')
-    await expect(providerService.saveApiKey('mcp:notion', 'secret')).rejects.toThrow('Network MCP authentication is managed outside GooeyPi')
-    await expect(providerService.logout('mcp:notion')).rejects.toThrow('Network MCP authentication is managed outside GooeyPi')
+    await expect(providerService.startOAuth('mcp:notion')).rejects.toThrow('Network MCP authentication is managed outside Kim')
+    await expect(providerService.saveApiKey('mcp:notion', 'secret')).rejects.toThrow('Network MCP authentication is managed outside Kim')
+    await expect(providerService.logout('mcp:notion')).rejects.toThrow('Network MCP authentication is managed outside Kim')
     expect(login).not.toHaveBeenCalled()
     expect(set).not.toHaveBeenCalled()
     expect(logout).not.toHaveBeenCalled()
@@ -388,7 +388,7 @@ describe('Prime provider adapter', () => {
     internals.authStorage.get = get
     expect(providerService.mcpCapabilities()).toContainEqual(expect.objectContaining({
       name: 'Notion', kind: 'mcp', location: 'bundled', enabled: false,
-      availability: { available: false, detail: expect.stringContaining('managed outside GooeyPi') },
+      availability: { available: false, detail: expect.stringContaining('managed outside Kim') },
     }))
     expect(get).not.toHaveBeenCalled()
   })

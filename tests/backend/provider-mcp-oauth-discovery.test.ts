@@ -32,8 +32,8 @@ describe('MCP OAuth boundary', () => {
     vi.stubGlobal('fetch', fetchMock)
     const providerService = service({ openExternal })
 
-    await expect(providerService.startOAuth('mcp:notion')).rejects.toThrow('Network MCP authentication is managed outside GooeyPi')
-    await expect(providerService.saveApiKey('mcp:custom-server', 'secret')).rejects.toThrow('Network MCP authentication is managed outside GooeyPi')
+    await expect(providerService.startOAuth('mcp:notion')).rejects.toThrow('Network MCP authentication is managed outside Kim')
+    await expect(providerService.saveApiKey('mcp:custom-server', 'secret')).rejects.toThrow('Network MCP authentication is managed outside Kim')
     expect(fetchMock).not.toHaveBeenCalled()
     expect(openExternal).not.toHaveBeenCalled()
   })

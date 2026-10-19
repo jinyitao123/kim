@@ -320,7 +320,7 @@ export function createWorkspaceActions(getDeps: () => WorkspaceActionsDeps) {
     }
     if (mcpCommand?.type === 'authenticate') {
       const target = mcpCommand.server ? ` to sign in to ${mcpCommand.server}` : ' to authenticate network MCP servers'
-      const message = `Network MCP authentication is managed outside GooeyPi. Use ${HARNESS_AGENT_NAMES[commandHarness]} directly${target}.`
+      const message = `Network MCP authentication is managed outside Kim. Use ${HARNESS_AGENT_NAMES[commandHarness]} directly${target}.`
       const hasAttachments = images.length > 0 || textAttachments.length > 0
       setToast(hasAttachments ? `${message} The command and attachments were not sent.` : message)
       if (hasAttachments) throw new Error('Remove the authentication command or its attachments before sending.')
@@ -465,7 +465,7 @@ export function createWorkspaceActions(getDeps: () => WorkspaceActionsDeps) {
         if (compactCommand && !activeRuntime) {
           if (!selected.sessionFile) { setToast('Nothing to compact yet.'); return }
           if (selectedSession?.status === 'running') {
-            setToast('Compaction is unavailable while this session is running outside GooeyPi.')
+            setToast('Compaction is unavailable while this session is running outside Kim.')
             return
           }
         }
@@ -486,7 +486,7 @@ export function createWorkspaceActions(getDeps: () => WorkspaceActionsDeps) {
         if (!activeRuntime) {
           workspace.attachRuntime(undefined, generation)
           if (images.length > 0 && selected.sessionFile && selectedSession?.status === 'running') {
-            throw new Error('Image attachments cannot be queued while this session is active outside GooeyPi. Wait for it to finish, then try again.')
+            throw new Error('Image attachments cannot be queued while this session is active outside Kim. Wait for it to finish, then try again.')
           }
           if (images.length === 0 && selected.sessionFile && selectedSession?.status === 'running'
             && await followUpExternalSession(selected.sessionFile)) {

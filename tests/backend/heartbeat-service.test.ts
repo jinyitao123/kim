@@ -33,7 +33,7 @@ describe('HeartbeatService', () => {
     const { service, agents } = fixture({ heartbeat })
     vi.spyOn(service, 'list').mockResolvedValue([{ ...heartbeat, schedule: 'every 10s', runtimeId: 'runtime-one', status, prompt: '/mcp login notion' }])
 
-    await expect(service.manage('heartbeat-one', 'resume')).rejects.toThrow('Network MCP authentication is managed outside GooeyPi')
+    await expect(service.manage('heartbeat-one', 'resume')).rejects.toThrow('Network MCP authentication is managed outside Kim')
     expect(agents.command).not.toHaveBeenCalled()
   })
 

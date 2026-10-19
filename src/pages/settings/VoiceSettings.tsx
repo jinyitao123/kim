@@ -122,7 +122,7 @@ export function VoiceSettings({ settings, onUpdate, voice, platform = 'darwin' }
       await voice.testSelfHosted({ url, model })
       await onUpdate({ voiceSelfHostedUrl: url, voiceSelfHostedModel: model })
       setSelfHostedTestState('connected')
-      setSelfHostedMessage('Connected. GooeyPi successfully transcribed a test audio clip.')
+      setSelfHostedMessage('Connected. Kim successfully transcribed a test audio clip.')
     } catch (error) {
       setSelfHostedTestState('error')
       setSelfHostedMessage(errorMessage(error))
@@ -143,19 +143,19 @@ export function VoiceSettings({ settings, onUpdate, voice, platform = 'darwin' }
       {serviceState === 'restart-required' ? (
         <div className="voice-bridge-notice" role="status">
           <RefreshCw size={17} />
-          <span><strong>Restart GooeyPi to finish enabling Voice</strong><small>This app window is connected to an older desktop process without the Voice handlers. Quit GooeyPi completely with {shortcutLabel(platform, ['Primary', 'Q'])}, then reopen it.</small></span>
+          <span><strong>Restart Kim to finish enabling Voice</strong><small>This app window is connected to an older desktop process without the Voice handlers. Quit Kim completely with {shortcutLabel(platform, ['Primary', 'Q'])}, then reopen it.</small></span>
         </div>
       ) : null}
 
       <section className="voice-section" aria-labelledby="voice-connections-title">
         <div className="voice-section__heading">
           <span><ShieldCheck size={15} /></span>
-          <div><h2 id="voice-connections-title">Connections</h2><p>Add a key for a hosted service. Voice keys stay in memory while GooeyPi is running; enter them again after restarting.</p></div>
+          <div><h2 id="voice-connections-title">Connections</h2><p>Add a key for a hosted service. Voice keys stay in memory while Kim is running; enter them again after restarting.</p></div>
         </div>
         {serviceState === 'ready' && status && sessionOnly ? (
           <div className="voice-storage-notice" role="status">
             <KeyRound size={17} />
-            <span><strong>Voice keys are session-only</strong><small>{status.storage.message ?? 'Keys stay available for this launch. Enter them again after restarting GooeyPi.'} You can still add a key for this session.</small></span>
+            <span><strong>Voice keys are session-only</strong><small>{status.storage.message ?? 'Keys stay available for this launch. Enter them again after restarting Kim.'} You can still add a key for this session.</small></span>
           </div>
         ) : null}
         {voice ? <div className="voice-connection-grid">
@@ -210,7 +210,7 @@ export function VoiceSettings({ settings, onUpdate, voice, platform = 'darwin' }
                 <input aria-label="Self-hosted model ID" value={selfHostedModel} placeholder="nvidia/parakeet-tdt-0.6b-v3" spellCheck={false} onChange={(event) => { setSelfHostedModel(event.target.value); setSelfHostedTestState('idle'); setSelfHostedMessage('') }} onBlur={() => { const value = selfHostedModel.trim(); if (value !== settings.voiceSelfHostedModel) update('voiceSelfHostedModel', value) }} />
               </label>
               <div className="voice-self-hosted-auth">
-                <span><strong>Access token</strong><small>Optional. Kept in memory while GooeyPi is running; enter it again after restarting.</small></span>
+                <span><strong>Access token</strong><small>Optional. Kept in memory while Kim is running; enter it again after restarting.</small></span>
                 <span className="voice-self-hosted-auth__actions">
                   <i>{status?.configured['self-hosted'] ? status.source['self-hosted'] === 'session' ? 'Session only' : status.source['self-hosted'] === 'environment' ? 'Environment token' : 'Token set' : 'No token'}</i>
                   {voice && serviceState === 'ready' ? <button type="button" className="button" disabled={busy} onClick={() => openCredential('self-hosted')}><KeyRound size={13} /> {status?.configured['self-hosted'] ? 'Replace token' : 'Add token'}</button> : null}
@@ -227,7 +227,7 @@ export function VoiceSettings({ settings, onUpdate, voice, platform = 'darwin' }
           ) : null}
           {settings.voiceTranscriptionProvider === 'local-whisper' ? (
             <div className="voice-local-setup">
-              <span className="voice-local-setup__intro"><Laptop size={15} /><span><strong>Local whisper.cpp setup</strong><small>These are file paths because GooeyPi runs your installed whisper.cpp directly. Hosted services do not need them.</small></span></span>
+              <span className="voice-local-setup__intro"><Laptop size={15} /><span><strong>Local whisper.cpp setup</strong><small>These are file paths because Kim runs your installed whisper.cpp directly. Hosted services do not need them.</small></span></span>
               <PathInput label="whisper-cli executable" description="Path to the whisper.cpp command-line program." placeholder="/opt/homebrew/bin/whisper-cli" value={settings.voiceLocalWhisperExecutable} onCommit={(value) => update('voiceLocalWhisperExecutable', value)} />
               <PathInput label="GGML model file" description="Path to the downloaded whisper.cpp model." placeholder="/path/to/ggml-large-v3-turbo.bin" value={settings.voiceLocalWhisperModel} onCommit={(value) => update('voiceLocalWhisperModel', value)} />
             </div>
@@ -258,12 +258,12 @@ export function VoiceSettings({ settings, onUpdate, voice, platform = 'darwin' }
             <span>{status?.configured.openai ? <Check size={13} /> : <KeyRound size={13} />}{status?.configured.openai ? 'OpenAI is connected' : 'OpenAI key required'}</span>
             {!status?.configured.openai && voice && serviceState === 'ready' ? <button type="button" onClick={() => openCredential('openai')}>Add key</button> : null}
           </div>
-          {sessionOnly ? <p className="voice-realtime-note">OpenAI keys stay in memory while GooeyPi is running. Enter them again after restarting.</p> : null}
+          {sessionOnly ? <p className="voice-realtime-note">OpenAI keys stay in memory while Kim is running. Enter them again after restarting.</p> : null}
         </div>
       </section>
 
       {credential ? <Modal title={`Connect ${CREDENTIALS.find((item) => item.id === credential)?.name ?? credential}`} onClose={closeCredential} footer={<><button type="button" className="button" disabled={busy} onClick={closeCredential}>Cancel</button><button type="button" className="button button--primary" disabled={busy || !apiKey.trim()} onClick={() => void saveCredential()}>{busy ? 'Applying…' : credential === 'self-hosted' ? 'Use token' : 'Use API key'}</button></>}>
-        <p className="modal-intro">Paste the {credential === 'self-hosted' ? 'optional bearer token' : 'provider API key'}. {sessionOnly ? 'GooeyPi keeps it in desktop memory for this app session. Enter it again after restarting GooeyPi.' : 'GooeyPi encrypts it on this device and does not show the key again.'}</p>
+        <p className="modal-intro">Paste the {credential === 'self-hosted' ? 'optional bearer token' : 'provider API key'}. {sessionOnly ? 'Kim keeps it in desktop memory for this app session. Enter it again after restarting Kim.' : 'Kim encrypts it on this device and does not show the key again.'}</p>
         {failure ? <p className="settings-error" role="alert">{failure}</p> : null}
         <label className="field"><span>{credential === 'self-hosted' ? 'Access token' : 'API key'}</span><input autoFocus type="password" value={apiKey} autoComplete="off" spellCheck={false} placeholder={credential === 'self-hosted' ? 'Paste access token' : 'Paste API key'} onChange={(event) => setApiKey(event.target.value)} /></label>
       </Modal> : null}

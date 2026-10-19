@@ -41,7 +41,7 @@ export const sessionOnlyVoiceSecretCodec: SecretCodec = {
   sessionOnly: true,
   status: () => ({
     available: false,
-    message: 'Voice keys stay in memory while GooeyPi is running. Enter them again after restarting GooeyPi.',
+    message: 'Voice keys stay in memory while Kim is running. Enter them again after restarting Kim.',
   }),
   encrypt: () => { throw new Error('Session-only voice keys cannot be persisted.') },
   decrypt: () => { throw new Error('Session-only voice keys cannot be loaded from disk.') },
@@ -210,7 +210,7 @@ class VoiceSecretStore {
     }
     const fromEnvironment = this.environmentKey(provider)
     if (fromEnvironment) return fromEnvironment
-    if (encrypted && !storage.available) throw new Error(storage.message ?? 'Voice keys stay in memory for this app session. Enter them again after restarting GooeyPi.')
+    if (encrypted && !storage.available) throw new Error(storage.message ?? 'Voice keys stay in memory for this app session. Enter them again after restarting Kim.')
     return undefined
   }
 
@@ -255,7 +255,7 @@ class VoiceSecretStore {
 function orchestrationInstructions(harness: HarnessId): string {
   const harnessName = HARNESSES[harness].agentName
   return [
-    'You are the voice orchestrator inside GooeyPi, a desktop client for Prime Agent and Pi Work.',
+    'You are the voice orchestrator inside Kim, a desktop client for Prime Agent and Pi Work.',
     `This voice session is locked to the currently selected ${harnessName} harness. Never switch harnesses.`,
     'Be concise and conversational. Answer general questions directly.',
     'Use get_local_context for the local date, time, time zone, approximate location, locale, or selected harness. Use search_web for current information. Use list_projects to resolve a project within the selected harness. Use list_models to resolve a requested model and its supported reasoning levels.',
@@ -294,7 +294,7 @@ function realtimeSession(settings: AppSettings, harness: HarnessId): Record<stri
       },
       {
         type: 'function', name: 'list_models',
-        description: `Find task models available from providers currently shown as active in GooeyPi for the selected ${harnessName} harness. Search with the user’s approximate model wording; hidden, disabled, and unavailable models are never returned. Each result includes the exact key and supported reasoning levels.`,
+        description: `Find task models available from providers currently shown as active in Kim for the selected ${harnessName} harness. Search with the user’s approximate model wording; hidden, disabled, and unavailable models are never returned. Each result includes the exact key and supported reasoning levels.`,
         parameters: {
           type: 'object', additionalProperties: false,
           properties: {

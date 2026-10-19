@@ -363,7 +363,7 @@ export const TerminalDrawer = forwardRef<TerminalDrawerHandle, TerminalDrawerPro
       return { tabId, label: tab.label ?? `${tab.shellName} ${tab.number}`, cwd, ...value }
     },
     runCommand: (command, label, onExit) => {
-      if (tabsRef.current.length >= MAX_TERMINAL_TABS) throw new Error(`GooeyPi supports at most ${MAX_TERMINAL_TABS} concurrent terminals.`)
+      if (tabsRef.current.length >= MAX_TERMINAL_TABS) throw new Error(`Kim supports at most ${MAX_TERMINAL_TABS} concurrent terminals.`)
       const tab = createTab(nextNumberRef.current++, shell, command, label, onExit)
       setTabs((current) => [...current, tab])
       setActiveTabId(tab.id)
@@ -380,7 +380,7 @@ export const TerminalDrawer = forwardRef<TerminalDrawerHandle, TerminalDrawerPro
 
   const addTerminal = () => {
     if (tabs.length >= MAX_TERMINAL_TABS) {
-      onError?.(`GooeyPi supports at most ${MAX_TERMINAL_TABS} concurrent terminals.`)
+      onError?.(`Kim supports at most ${MAX_TERMINAL_TABS} concurrent terminals.`)
       return
     }
     const tab = createTab(nextNumberRef.current++, shell)

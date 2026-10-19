@@ -60,7 +60,7 @@ describe('packaged smoke argument parsing', () => {
 describe('packaged smoke launcher invocation', () => {
   it('runs the executable directly when a display is available', () => {
     expect(launcher.launchCommand('/app/gooeypi', ['--flag'], { platform: 'linux', display: ':0' })).toEqual({ command: '/app/gooeypi', args: ['--flag'] })
-    expect(launcher.launchCommand('C:\\app\\GooeyPi.exe', ['--flag'], { platform: 'win32', display: '' })).toEqual({ command: 'C:\\app\\GooeyPi.exe', args: ['--flag'] })
+    expect(launcher.launchCommand('C:\\app\\Kim.exe', ['--flag'], { platform: 'win32', display: '' })).toEqual({ command: 'C:\\app\\Kim.exe', args: ['--flag'] })
   })
 
   it('wraps a headless Linux launch in a virtual display', () => {

@@ -752,7 +752,7 @@ test.describe('Prime Work desktop smoke', () => {
   })
 
   test('opens Pi Work by default, keeps retired OMP history unaliased, and creates a Pi session', async () => {
-    const piBrand = page.getByRole('button', { name: 'Weave Workbench — Pi Work' })
+    const piBrand = page.getByRole('button', { name: 'Kim — Pi Work' })
     await expect(piBrand).toBeVisible()
     await expect(page.locator('.session-row__title').filter({ hasText: 'Pi hermetic fixture' })).toBeVisible()
     await expect(page.locator('.session-row__title').filter({ hasText: 'OMP hermetic fixture' })).toHaveCount(0)
@@ -983,7 +983,7 @@ test.describe('Prime Work desktop smoke', () => {
       return { type: typeof prime, groups: prime ? Object.keys(prime).sort() : [], voiceMethods: voice && typeof voice === 'object' ? Object.keys(voice).sort() : [] }
     })
     expect(bridge.type).toBe('object')
-    expect(bridge.groups).toEqual(['agent', 'app', 'browser', 'enterprise', 'git', 'heartbeats', 'pets', 'plugins', 'projects', 'providers', 'schedules', 'sessions', 'settings', 'terminal', 'updates', 'voice'])
+    expect(bridge.groups).toEqual(['agent', 'app', 'browser', 'enterprise', 'git', 'heartbeats', 'plugins', 'projects', 'providers', 'schedules', 'sessions', 'settings', 'terminal', 'updates', 'voice'])
     expect(bridge.voiceMethods).toContain('testSelfHosted')
     const updateMenu = await app!.evaluate(({ Menu }) => {
       const parents = Menu.getApplicationMenu()?.items ?? []
@@ -991,7 +991,7 @@ test.describe('Prime Work desktop smoke', () => {
       return { found: Boolean(parent), parent: parent?.label, platform: process.platform }
     })
     expect(updateMenu.found).toBe(true)
-    expect(updateMenu.parent).toBe(updateMenu.platform === 'darwin' ? 'GooeyPi' : 'Help')
+    expect(updateMenu.parent).toBe(updateMenu.platform === 'darwin' ? 'Kim' : 'Help')
     await expect(page.evaluate(() => window.prime.updates.getState())).resolves.toMatchObject({ phase: 'unsupported' })
     const credentialStatus = await page.evaluate(() => window.prime.voice.credentialStatus())
     expect(typeof credentialStatus.storage.available).toBe('boolean')
@@ -1002,7 +1002,7 @@ test.describe('Prime Work desktop smoke', () => {
     })
     expect(invalidSelfHostedTest).toMatch(/too short|Invalid URL/)
     await expect.poll(() => app!.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().every((window) => !window.isVisible()))).toBe(true)
-    const primeBrand = page.getByRole('button', { name: 'Weave Workbench — Prime Work' })
+    const primeBrand = page.getByRole('button', { name: 'Kim — Prime Work' })
     await expect(primeBrand).toBeVisible()
     await expect(page.locator('.sidebar__brand small')).toHaveText('Workbench')
     await expectSharedWorkbenchMark(primeBrand)
@@ -1014,7 +1014,7 @@ test.describe('Prime Work desktop smoke', () => {
     const shell = page.locator('.app-shell')
     const sidebar = page.locator('.sidebar')
     const clearance = page.locator('.sidebar__titlebar .traffic-light-clearance')
-    const trigger = page.getByRole('button', { name: 'Weave Workbench — Prime Work' })
+    const trigger = page.getByRole('button', { name: 'Kim — Prime Work' })
     for (const platform of ['linux', 'win32']) {
       await shell.evaluate((node, value) => { node.setAttribute('data-platform', value) }, platform)
       await expect(clearance).toHaveCSS('display', 'none')
@@ -1107,69 +1107,10 @@ test.describe('Prime Work desktop smoke', () => {
     expect(layout.shellTop).toBe(layout.initialShellTop)
   })
 
-  test('uses the persisted selected pet for realtime voice after a full restart', async () => {
-    const desktopPet = page.getByRole('button', { name: /Orb, draggable GooeyPi pet/ })
-    await expect(desktopPet).toBeVisible()
-    await desktopPet.hover()
-    await expect(desktopPet).not.toHaveAttribute('title')
-    await expect(page.locator('.desktop-pet__name')).toHaveCount(0)
-    const idlePetGap = await page.locator('.desktop-pet').evaluate((surface) => {
-      const avatar = surface.querySelector<HTMLElement>('.desktop-pet__avatar')!.getBoundingClientRect()
-      const waveform = surface.querySelector<HTMLButtonElement>('[aria-label="Open realtime voice"]')!.getBoundingClientRect()
-      return waveform.top - avatar.bottom
-    })
-    expect(idlePetGap).toBeGreaterThanOrEqual(-8)
-    expect(idlePetGap).toBeLessThanOrEqual(1)
-    await page.locator('.title-toolbar').getByRole('button', { name: 'Open realtime voice' }).click()
-    await expect(page.getByRole('complementary', { name: 'Realtime voice session' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Orb, draggable GooeyPi pet/ })).toBeVisible()
-    await expect(page.locator('.voice-orb')).toHaveCount(0)
-    await page.getByRole('complementary', { name: 'Realtime voice session' }).getByRole('button', { name: 'Close realtime voice' }).click()
-
-    await page.locator('.sidebar__footer button').filter({ hasText: 'Settings' }).click()
-    await page.getByRole('button', { name: 'Pets', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Pets', exact: true })).toBeVisible()
-    await expect(page.getByRole('radio', { name: /^Orb Built/ })).toBeChecked()
-    await page.getByRole('radio', { name: /^GooeyPi Built/ }).click()
-    await expect(page.getByRole('radio', { name: /^GooeyPi Built/ })).toBeChecked()
-    await expect(page.getByRole('heading', { name: 'Codex Pets' })).toBeVisible()
-    const showPet = page.getByRole('checkbox', { name: 'Show desktop pet' })
-    await showPet.focus()
-    await showPet.press('Space')
-    await expect(showPet).not.toBeChecked()
-    await expect(page.locator('.desktop-pet')).toHaveCount(0)
-    await expect.poll(() => JSON.parse(readFileSync(join(fixtureRoot, 'user-data', CURRENT_DESKTOP_STATE_FILENAME), 'utf8')).settings).toMatchObject({ petEnabled: false, petId: 'gooey-pi' })
-
-    await closeHermeticApp(app)
-    app = undefined
-    if (!currentFixture) throw new Error('Missing hermetic fixture for relaunch')
-    app = await launchHermeticElectron({
-      args: ['.', `--user-data-dir=${currentFixture.userData}`],
-      cwd: process.cwd(),
-      env: hermeticEnvironment(currentFixture.home, currentFixture.executable, currentFixture.piExecutable, currentFixture.cuaExecutable, enterpriseFixtureOrigin, false) as Record<string, string>,
-      timeout: 20_000,
-    })
-    app.context().on('page', attachDiagnostics)
-    for (const target of app.windows()) attachDiagnostics(target)
-    page = await app.firstWindow({ timeout: 15_000 })
-    attachDiagnostics(page)
-    await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible({ timeout: 20_000 })
-    await page.getByRole('button', { name: '登录', exact: true }).click()
-    await expect(page.locator('.app-shell')).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
-
-    await expect(page.locator('.desktop-pet')).toHaveCount(0)
-    await page.locator('.session-row-wrap').filter({ hasText: 'Hermetic desktop fixture' }).locator('.session-row').click()
-    await page.locator('.title-toolbar').getByRole('button', { name: 'Open realtime voice' }).click()
-    const realtimePet = page.getByRole('complementary', { name: 'Realtime voice session' })
-    await expect(realtimePet.getByRole('button', { name: /GooeyPi, draggable GooeyPi pet/ })).toBeVisible()
-    await expect(realtimePet.locator('.pet-sprite img')).toBeVisible()
-    await expect(page.locator('.voice-orb')).toHaveCount(0)
-  })
-
   test('switches to Pi Work and lists the pi session catalog, then returns to Prime', async () => {
-    await page.getByRole('button', { name: 'Weave Workbench — Prime Work' }).click()
+    await page.getByRole('button', { name: 'Kim — Prime Work' }).click()
     await page.getByRole('menuitemradio', { name: /Pi Work/ }).click()
-    const piBrand = page.getByRole('button', { name: 'Weave Workbench — Pi Work' })
+    const piBrand = page.getByRole('button', { name: 'Kim — Pi Work' })
     await expect(piBrand).toBeVisible()
     await expectSharedWorkbenchMark(piBrand)
     await expect(page.locator('.session-row__title').filter({ hasText: 'Pi hermetic fixture' })).toBeVisible()
@@ -1184,14 +1125,14 @@ test.describe('Prime Work desktop smoke', () => {
     await expect(page.getByRole('main').getByText('Pi fixture reply.')).toBeVisible()
     await piBrand.click()
     await page.getByRole('menuitemradio', { name: /Prime Work/ }).click()
-    const primeBrand = page.getByRole('button', { name: 'Weave Workbench — Prime Work' })
+    const primeBrand = page.getByRole('button', { name: 'Kim — Prime Work' })
     await expect(primeBrand).toBeVisible()
     await expectSharedWorkbenchMark(primeBrand)
     await expect(page.locator('.session-row__title').filter({ hasText: 'Hermetic desktop fixture' })).toBeVisible()
   })
 
   test('wraps an unbroken user-message token inside a Pi Work chat bubble', async () => {
-    await page.getByRole('button', { name: 'Weave Workbench — Prime Work' }).click()
+    await page.getByRole('button', { name: 'Kim — Prime Work' }).click()
     await page.getByRole('menuitemradio', { name: /Pi Work/ }).click()
     await page.locator('.session-row__title').filter({ hasText: 'Pi hermetic fixture' }).click()
 
@@ -1203,14 +1144,12 @@ test.describe('Prime Work desktop smoke', () => {
 
   test('closes realtime voice before switching harnesses', async () => {
     await page.locator('.title-toolbar').getByRole('button', { name: 'Open realtime voice' }).click()
-    const petSurface = page.locator('.desktop-pet')
-    await expect(petSurface.getByRole('button', { name: 'Mute realtime voice' })).toBeVisible()
-    await expect(page.locator('.voice-orb')).toHaveCount(0)
-    await page.getByRole('button', { name: 'Weave Workbench — Prime Work' }).click()
+    const voiceOrb = page.locator('.voice-orb')
+    await expect(voiceOrb.getByRole('button', { name: 'Mute realtime voice' })).toBeVisible()
+    await page.getByRole('button', { name: 'Kim — Prime Work' }).click()
     await page.getByRole('menuitemradio', { name: /Pi Work/ }).click()
-    await expect(petSurface.getByRole('button', { name: 'Mute realtime voice' })).toHaveCount(0)
-    await expect(petSurface.getByRole('button', { name: 'Open realtime voice' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Weave Workbench — Pi Work' })).toBeVisible()
+    await expect(voiceOrb).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Kim — Pi Work' })).toBeVisible()
   })
 
   test('keeps Harness settings scoped to Prime and Pi', async () => {
@@ -1222,7 +1161,7 @@ test.describe('Prime Work desktop smoke', () => {
 
     const selects = page.locator('.settings-content select')
     await selects.nth(0).selectOption('pi')
-    await expect(page.getByRole('button', { name: 'Weave Workbench — Pi Work' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Kim — Pi Work' })).toBeVisible()
     await expect(page.getByText('OMP approval mode', { exact: true })).toHaveCount(0)
 
     await page.getByRole('button', { name: 'Providers', exact: true }).click()
@@ -1246,14 +1185,14 @@ test.describe('Prime Work desktop smoke', () => {
     expect(result.meta.harnesses.pi.path).toBeTruthy()
     expect(result.meta.harnesses).not.toHaveProperty('omp')
 
-    await page.getByRole('button', { name: /Weave Workbench — .*Work/ }).click()
+    await page.getByRole('button', { name: /Kim — .*Work/ }).click()
     const loomDetected = Boolean(result.meta.harnesses.loom.path)
     await expect(page.getByRole('menuitemradio')).toHaveCount(loomDetected ? 3 : 2)
     await expect(page.getByRole('menuitemradio', { name: /Loom Work/ })).toHaveCount(loomDetected ? 1 : 0)
   })
 
   test('adds and connects to Pi installed while the app is open', async () => {
-    await page.getByRole('button', { name: 'Weave Workbench — Prime Work' }).click()
+    await page.getByRole('button', { name: 'Kim — Prime Work' }).click()
     await expect(page.getByRole('menuitemradio', { name: /Pi Work/ })).toHaveCount(0)
     await page.keyboard.press('Escape')
 
@@ -1265,7 +1204,7 @@ test.describe('Prime Work desktop smoke', () => {
     await page.getByRole('button', { name: 'Refresh harnesses' }).click()
     await expect(page.getByText('Pi is ready', { exact: true })).toBeVisible()
 
-    await page.getByRole('button', { name: 'Weave Workbench — Prime Work' }).click()
+    await page.getByRole('button', { name: 'Kim — Prime Work' }).click()
     await page.getByRole('menuitemradio', { name: /Pi Work/ }).click()
     await page.locator('.session-row__title').filter({ hasText: 'Pi hermetic fixture' }).click()
     const composer = page.getByRole('combobox', { name: 'Message Pi' })
@@ -1751,10 +1690,10 @@ test.describe('Prime Work desktop smoke', () => {
         await expect(addDialog.getByText('Add MCP', { exact: true })).toBeVisible()
         await expect(addDialog.getByText('Add Package', { exact: true })).toBeVisible()
         await expect(addDialog.getByText('Add Extension', { exact: true })).toBeVisible()
-        await expect(addDialog.getByText(/Not every third-party package, plugin, or extension will work in GooeyPi/)).toBeVisible()
+        await expect(addDialog.getByText(/Not every third-party package, plugin, or extension will work in Kim/)).toBeVisible()
         const addMcp = addDialog.getByRole('button', { name: /Add MCP/ })
         await expect(addMcp).toBeDisabled()
-        await expect(addMcp).toContainText('Prime MCP setup is managed outside GooeyPi')
+        await expect(addMcp).toContainText('Prime MCP setup is managed outside Kim')
         await expect(addDialog.getByText('Server URL', { exact: true })).toHaveCount(0)
         await expect(addDialog.getByText('Authentication', { exact: true })).toHaveCount(0)
         await addDialog.getByRole('button', { name: 'Close' }).click()
@@ -1781,7 +1720,7 @@ test.describe('Prime Work desktop smoke', () => {
   })
 
   test('installs, disables, and restores Pi MCP support from its directory toggle', async () => {
-    await page.getByRole('button', { name: 'Weave Workbench — Prime Work' }).click()
+    await page.getByRole('button', { name: 'Kim — Prime Work' }).click()
     await page.getByRole('menuitemradio', { name: /Pi Work/ }).click()
     await navigateFromCommandPalette('Capabilities')
 
@@ -1794,10 +1733,10 @@ test.describe('Prime Work desktop smoke', () => {
     await expect.poll(() => JSON.parse(readFileSync(settingsPath, 'utf8')).packages).toContain('npm:pi-mcp-adapter')
     await expect(page.getByRole('status').filter({ hasText: 'Pi MCP Adapter installed.' })).toBeVisible()
 
-    await page.getByRole('button', { name: 'Weave Workbench — Pi Work' }).click()
+    await page.getByRole('button', { name: 'Kim — Pi Work' }).click()
     await page.getByRole('menuitemradio', { name: /Prime Work/ }).click()
     await expect(page.getByText('Pi MCP Adapter installed.')).toHaveCount(0)
-    await page.getByRole('button', { name: 'Weave Workbench — Prime Work' }).click()
+    await page.getByRole('button', { name: 'Kim — Prime Work' }).click()
     await page.getByRole('menuitemradio', { name: /Pi Work/ }).click()
     await expect(page.getByRole('heading', { name: 'Extend Pi' })).toBeVisible()
 
@@ -2032,7 +1971,7 @@ test.describe('Prime Work desktop smoke', () => {
 
   test('injects ask_user into Pi and answers its grouped questionnaire in the app', async () => {
     await page.evaluate(() => window.prime.settings.update({ askUserEnabled: true }))
-    await page.getByRole('button', { name: 'Weave Workbench — Prime Work' }).click()
+    await page.getByRole('button', { name: 'Kim — Prime Work' }).click()
     await page.getByRole('menuitemradio', { name: /Pi Work/ }).click()
     await page.locator('.session-row__title').filter({ hasText: 'Pi hermetic fixture' }).click()
     await expect(page.locator('.model-picker__trigger')).toHaveAccessibleName('Model: Claude Fixture')
@@ -2482,8 +2421,8 @@ test.describe('Prime Work desktop smoke', () => {
       const originalBuildFromTemplate = Menu.buildFromTemplate.bind(Menu)
       Menu.buildFromTemplate = ((template) => {
         const items = template as Array<{ label?: string; type?: string; click?: () => void }>
-        if (items.map((item) => item.label ?? item.type).join('|') === 'Open GooeyPi|separator|Settings...|Quit') {
-          scope.__trayOpen = items.find((item) => item.label === 'Open GooeyPi')?.click
+        if (items.map((item) => item.label ?? item.type).join('|') === 'Open Kim|separator|Settings...|Quit') {
+          scope.__trayOpen = items.find((item) => item.label === 'Open Kim')?.click
         }
         return originalBuildFromTemplate(template)
       }) as typeof Menu.buildFromTemplate
@@ -2522,7 +2461,7 @@ test.describe('Prime Work desktop smoke', () => {
       const originalBuildFromTemplate = Menu.buildFromTemplate.bind(Menu)
       Menu.buildFromTemplate = ((template) => {
         const items = template as Array<{ label?: string; type?: string }>
-        if (items.map((item) => item.label ?? item.type).join('|') === 'Open GooeyPi|separator|Settings...|Quit') {
+        if (items.map((item) => item.label ?? item.type).join('|') === 'Open Kim|separator|Settings...|Quit') {
           process.getBuiltinModule('node:fs').appendFileSync(markerPath, 'tray\n')
         }
         return originalBuildFromTemplate(template)
@@ -2548,9 +2487,9 @@ test.describe('Prime Work desktop smoke', () => {
     await stubCloseDialog(app!)
 
     const runningPrompt = {
-      message: 'Close GooeyPi while an agent is running?',
+      message: 'Close Kim while an agent is running?',
       detail: 'An agent run is still in progress and will be stopped.',
-      buttons: ['Cancel', 'Close GooeyPi'],
+      buttons: ['Cancel', 'Close Kim'],
     }
     await app!.evaluate(({ BrowserWindow }) => { BrowserWindow.getAllWindows()[0]?.close() })
     await expect.poll(() => closePrompts(app!)).toEqual([runningPrompt])
@@ -2579,7 +2518,7 @@ test.describe('Prime Work desktop smoke', () => {
       const originalBuildFromTemplate = Menu.buildFromTemplate.bind(Menu)
       Menu.buildFromTemplate = ((template) => {
         const items = template as Array<{ label?: string; type?: string; click?: () => void }>
-        if (items.map((item) => item.label ?? item.type).join('|') === 'Open GooeyPi|separator|Settings...|Quit') {
+        if (items.map((item) => item.label ?? item.type).join('|') === 'Open Kim|separator|Settings...|Quit') {
           scope.__trayQuit = items.find((item) => item.label === 'Quit')?.click
         }
         return originalBuildFromTemplate(template)
@@ -2612,9 +2551,9 @@ test.describe('Prime Work desktop smoke', () => {
     expect(processIsAlive(runtimePid)).toBe(true)
 
     const runningPrompt = {
-      message: 'Close GooeyPi while an agent is running?',
+      message: 'Close Kim while an agent is running?',
       detail: 'An agent run is still in progress and will be stopped.',
-      buttons: ['Cancel', 'Close GooeyPi'],
+      buttons: ['Cancel', 'Close Kim'],
     }
     await app!.evaluate(() => {
       const quit = (globalThis as { __trayQuit?: () => void }).__trayQuit

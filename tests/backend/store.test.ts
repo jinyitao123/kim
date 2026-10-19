@@ -114,18 +114,6 @@ describe('JsonStateStore', () => {
     expect(JSON.parse(readFileSync(path, 'utf8')).archivedSessions).toHaveLength(20)
   })
 
-  it('defaults to Orb and preserves the selected pet across a full store restart', async () => {
-    const dir = makeDirectory()
-    const path = join(dir, 'state.json')
-    const store = makeStore(path)
-    expect(store.getSettings().petId).toBe('orb')
-
-    await store.update((state) => { state.settings.petId = 'codex/rocky' })
-    await store.beginShutdown()
-
-    expect(makeStore(path).getSettings().petId).toBe('codex/rocky')
-  })
-
   it('defaults and validates the configurable message Enter action', async () => {
     const dir = makeDirectory()
     const path = join(dir, 'state.json')
@@ -635,7 +623,7 @@ describe('JsonStateStore', () => {
     expect(() => store.getProjects()).toThrow(UnsupportedStateVersionError)
     expect(() => store.getArchivedSessions()).toThrow(UnsupportedStateVersionError)
     await expect(store.ready()).rejects.toBeInstanceOf(UnsupportedStateVersionError)
-    await expect(store.ready()).rejects.toThrow(/version 99.*newer.*version 6.*upgrade GooeyPi/i)
+    await expect(store.ready()).rejects.toThrow(/version 99.*newer.*version 6.*upgrade Kim/i)
     await expect(store.update(mutator)).rejects.toBeInstanceOf(UnsupportedStateVersionError)
     expect(mutator).not.toHaveBeenCalled()
     await store.beginShutdown()

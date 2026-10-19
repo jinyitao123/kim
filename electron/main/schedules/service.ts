@@ -268,7 +268,7 @@ export class AutomationService {
           if (run.status !== 'queued' && run.status !== 'running') continue
           run.status = 'interrupted'
           run.finishedAt = finishedAt
-          run.error = 'GooeyPi quit before this run could finish.'
+          run.error = 'Kim quit before this run could finish.'
         }
       }
     })
@@ -373,7 +373,7 @@ export class AutomationService {
     const ownership: PersistedScheduleOwnership = { scheduleId: task.id, ownerScope, state: 'bound' }
     await this.store.update((state) => {
       this.assertScopeRevision(scopeRevision, ownerScope)
-      if (state.schedules.length >= MAX_TASKS) throw new Error(`GooeyPi supports at most ${MAX_TASKS} scheduled tasks`)
+      if (state.schedules.length >= MAX_TASKS) throw new Error(`Kim supports at most ${MAX_TASKS} scheduled tasks`)
       state.schedules.push(task)
       state.scheduleOwnerships.push(ownership)
     })
@@ -570,7 +570,7 @@ export class AutomationService {
     const run: ScheduleRunRecord = {
       id: randomUUID(), taskId: snapshot.id, taskRevision: snapshot.revision, trigger: 'scheduled',
       scheduledFor, queuedAt: now.toISOString(), finishedAt: now.toISOString(), status: 'skipped',
-      execution: snapshot.execution, skippedCount: Math.max(1, missed), error: 'GooeyPi was not available when this task was due.',
+      execution: snapshot.execution, skippedCount: Math.max(1, missed), error: 'Kim was not available when this task was due.',
     }
     await this.store.update((state) => {
       if (this.ownerScopeRevision !== expectedRevision || this.ownerScope !== ownerScope || !isScheduleBoundToScope(state, snapshot.id, ownerScope)) return

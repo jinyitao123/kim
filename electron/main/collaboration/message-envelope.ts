@@ -47,7 +47,7 @@ interface SignedMetadataV3 {
 type SignedMetadata = SignedMetadataV1 | SignedMetadataV2 | SignedMetadataV3
 
 function signature(metadata: SignedMetadata, text: string): Buffer {
-  if (!signingKey) throw new Error('GooeyPi agent-message signing is not initialized')
+  if (!signingKey) throw new Error('Kim agent-message signing is not initialized')
   return createHmac('sha256', signingKey).update(JSON.stringify(metadata)).update('\0').update(text).digest()
 }
 
@@ -55,10 +55,10 @@ function signature(metadata: SignedMetadata, text: string): Buffer {
 export function loadOrCreateGooeyPiAgentMessageKey(path: string): Buffer {
   const readExisting = (): Buffer => {
     const stat = lstatSync(path)
-    if (!stat.isFile() || stat.size !== KEY_BYTES) throw new Error('The GooeyPi agent-message signing key is invalid')
+    if (!stat.isFile() || stat.size !== KEY_BYTES) throw new Error('The Kim agent-message signing key is invalid')
     if (process.platform !== 'win32' && (stat.mode & 0o077) !== 0) chmodSync(path, 0o600)
     const existing = readFileSync(path)
-    if (existing.length !== KEY_BYTES) throw new Error('The GooeyPi agent-message signing key is invalid')
+    if (existing.length !== KEY_BYTES) throw new Error('The Kim agent-message signing key is invalid')
     return existing
   }
   try {
@@ -77,7 +77,7 @@ export function loadOrCreateGooeyPiAgentMessageKey(path: string): Buffer {
 }
 
 export function configureGooeyPiAgentMessageSigning(key: Uint8Array): void {
-  if (key.byteLength !== KEY_BYTES) throw new Error('The GooeyPi agent-message signing key must be 32 bytes')
+  if (key.byteLength !== KEY_BYTES) throw new Error('The Kim agent-message signing key must be 32 bytes')
   signingKey = Buffer.from(key)
 }
 

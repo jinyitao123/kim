@@ -10,8 +10,8 @@ interface AboutSettingsProps {
 export function AboutSettings({ meta, onOpenDocs }: AboutSettingsProps) {
   return (
     <>
-      <header><h1>关于 Weave Workbench</h1></header>
-      <section className="about-card"><WorkbenchMark size={48} /><div><h2>Weave Workbench</h2><p>版本 {meta?.version ?? '0.1.0'}</p></div></section>
+      <header><h1>关于 Kim</h1></header>
+      <section className="about-card"><WorkbenchMark size={48} /><div><h2>Kim</h2><p>版本 {meta?.version ?? '0.1.0'}</p></div></section>
       <section className="settings-group">
         <div className="settings-row"><span><strong>Platform</strong><small>{meta?.platform ?? 'macOS'}</small></span></div>
         <div className="settings-row"><span><strong>Home directory</strong><small className="mono">{meta?.homeDir ?? '—'}</small></span></div>

@@ -864,7 +864,7 @@ export interface PrimeModelDescriptor {
   availableThinkingLevels: PrimeThinkingLevel[]
   fastModeSupported: boolean
   available: boolean
-  /** GooeyPi visibility policy for this harness; absent catalogs predate per-model controls. */
+  /** Kim visibility policy for this harness; absent catalogs predate per-model controls. */
   enabled?: boolean
 }
 
@@ -1060,16 +1060,6 @@ export interface TerminalActiveContext { label: string; content: string; truncat
 export type MessageEnterAction = 'queue' | 'steer'
 export type PromptDeliveryIntent = 'queue' | 'steer'
 
-export interface PetDefinition {
-  /** Stable settings key. Codex pets are namespaced as codex/<folder>. */
-  id: string
-  /** Package manifest id, used to deduplicate bundled and Codex copies. */
-  petId: string
-  displayName: string
-  description: string
-  source: 'built-in' | 'codex'
-  kind: 'orb' | 'spritesheet'
-}
 
 export interface QueuedPrompt {
   id: string
@@ -1120,7 +1110,7 @@ export interface AppSettings {
   checkoutStrategy: CheckoutStrategy
   /** Keep the desktop process available for scheduled work after its window closes. */
   keepRunningInBackground: boolean
-  /** Ask the operating system to launch GooeyPi when the user signs in. */
+  /** Ask the operating system to launch Kim when the user signs in. */
   launchAtLogin: boolean
   terminalOpen: boolean
   defaultInspectorTab: InspectorTab
@@ -1140,9 +1130,9 @@ export interface AppSettings {
    * The Privacy UI deliberately ignores this field; any reporting use needs separate review.
    */
   telemetry: boolean
-  /** GooeyPi-managed ask_user tool, shared by every interactive harness. */
+  /** Kim-managed ask_user tool, shared by every interactive harness. */
   askUserEnabled: boolean
-  /** Expose GooeyPi's thread-scoped in-app browser controls to new sessions. */
+  /** Expose Kim's thread-scoped in-app browser controls to new sessions. */
   browserEnabled: boolean
   /** Expose the separately installed TryCUA driver to new sessions through its official CLI. */
   computerUseEnabled: boolean
@@ -1158,12 +1148,6 @@ export interface AppSettings {
   lastSelectedModels: Record<HarnessId, string>
   /** Harness whose workspace the renderer shows; new installs default to Pi Work. */
   activeHarness: HarnessId
-  /** Desktop companion shown above the workspace. */
-  petEnabled: boolean
-  /** Built-in or discovered pet selection id. */
-  petId: string
-  /** Desktop companion size as a percentage of its native workspace size. */
-  petSize: number
   /** Speech-to-text path used by the composer microphone. */
   voiceTranscriptionProvider: VoiceTranscriptionProvider
   /** Provider model IDs stay configurable without exposing provider credentials. */
@@ -1498,10 +1482,6 @@ export interface PrimeWorkApi {
     transcribe(request: VoiceTranscriptionRequest): Promise<string>
     testSelfHosted(request: VoiceSelfHostedTestRequest): Promise<boolean>
     executeTool(request: VoiceToolRequest, harness: HarnessId): Promise<VoiceToolResult>
-  }
-  pets: {
-    list(): Promise<PetDefinition[]>
-    sprite(id: string): Promise<string | null>
   }
   terminal: {
     create(options: TerminalSpawnOptions): Promise<{ terminalId: string; shell: string }>

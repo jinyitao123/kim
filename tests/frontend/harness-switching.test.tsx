@@ -979,7 +979,6 @@ describe('harness settings surfaces', () => {
         meta={meta}
         providerCatalog={null}
         voice={null}
-        pets={null}
         initialSection={initialSection}
         initialSectionRequestId={initialSectionRequestId}
         onClose={noop}

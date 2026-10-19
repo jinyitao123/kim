@@ -11,7 +11,7 @@ type ShellApi = Pick<PrimeWorkApi['app'], 'openExternal' | 'revealPath'>
  */
 export async function openExternalUrl(app: ShellApi, url: string): Promise<string | null> {
   try {
-    return await app.openExternal(url) ? null : `GooeyPi could not open ${url} in your browser.`
+    return await app.openExternal(url) ? null : `Kim could not open ${url} in your browser.`
   } catch (error) {
     return errorMessage(error)
   }
@@ -19,7 +19,7 @@ export async function openExternalUrl(app: ShellApi, url: string): Promise<strin
 
 export async function revealPath(app: ShellApi, path: string): Promise<string | null> {
   try {
-    return await app.revealPath(path) ? null : `GooeyPi could not reveal ${path} in your file manager.`
+    return await app.revealPath(path) ? null : `Kim could not reveal ${path} in your file manager.`
   } catch (error) {
     return errorMessage(error)
   }

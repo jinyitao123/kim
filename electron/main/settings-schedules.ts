@@ -89,13 +89,6 @@ export class SettingsService {
         if (!HARNESS_IDS.includes(value as HarnessId)) throw new TypeError('Invalid harness')
         return value as HarnessId
       },
-      petEnabled: (value) => requireBoolean(value, 'petEnabled'),
-      petId: (value) => {
-        const id = requireString(value, 'petId', { min: 1, max: 128, trim: true })
-        if (!/^[a-z0-9][a-z0-9._/-]{0,127}$/i.test(id)) throw new TypeError('Invalid pet id')
-        return id
-      },
-      petSize: (value) => requireInteger(value, 'petSize', 50, 125),
       voiceTranscriptionProvider: (value) => {
         if (value !== 'openai-live' && value !== 'openai' && value !== 'groq' && value !== 'deepgram' && value !== 'self-hosted' && value !== 'local-whisper') throw new TypeError('Invalid voice transcription provider')
         return value

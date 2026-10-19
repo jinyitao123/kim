@@ -13,7 +13,7 @@ vi.mock('../../src/components/ui', () => ({
 const emptyStatus: VoiceCredentialStatus = {
   configured: { openai: false, groq: false, deepgram: false, 'self-hosted': false },
   source: {},
-  storage: { available: false, message: 'Voice keys stay in memory while GooeyPi is running. Enter them again after restarting GooeyPi.' },
+  storage: { available: false, message: 'Voice keys stay in memory while Kim is running. Enter them again after restarting Kim.' },
 }
 
 let root: Root
@@ -113,14 +113,14 @@ describe('Voice settings setup flow', () => {
     await render(<Harness voice={voiceBridge()} />)
 
     const realtime = container.querySelector<HTMLElement>('[aria-labelledby="voice-realtime-title"]')!
-    expect(realtime.textContent).toContain('OpenAI keys stay in memory while GooeyPi is running.')
+    expect(realtime.textContent).toContain('OpenAI keys stay in memory while Kim is running.')
     expect(realtime.textContent).toContain('Enter them again after restarting.')
     expect(container.textContent).not.toContain('keychain')
     expect(container.textContent).not.toContain('GNOME Keyring')
   })
 
   it('allows a key for this app session and explains it must be entered again after restarting', async () => {
-    const message = 'Voice keys stay in memory while GooeyPi is running. Enter them again after restarting GooeyPi.'
+    const message = 'Voice keys stay in memory while Kim is running. Enter them again after restarting Kim.'
     const saveApiKey = vi.fn().mockResolvedValue({
       configured: { openai: true, groq: false, deepgram: false, 'self-hosted': false },
       source: { openai: 'session' },
@@ -136,7 +136,7 @@ describe('Voice settings setup flow', () => {
     })} />)
 
     expect(container.textContent).toContain('Voice keys are session-only')
-    expect(container.textContent).toContain('Enter them again after restarting GooeyPi')
+    expect(container.textContent).toContain('Enter them again after restarting Kim')
     expect(container.textContent).not.toContain('Storage locked')
     const openAiCard = [...container.querySelectorAll<HTMLElement>('.voice-connection-card')].find((card) => card.textContent?.includes('OpenAI'))!
     const addKey = [...openAiCard.querySelectorAll('button')].find((button) => button.textContent?.includes('Add key'))!
@@ -145,7 +145,7 @@ describe('Voice settings setup flow', () => {
 
     const dialog = container.querySelector<HTMLElement>('[role="dialog"]')!
     expect(dialog.textContent).toContain('in desktop memory for this app session')
-    expect(dialog.textContent).toContain('Enter it again after restarting GooeyPi')
+    expect(dialog.textContent).toContain('Enter it again after restarting Kim')
     const input = dialog.querySelector<HTMLInputElement>('input[type="password"]')!
     await enter(input, 'sk-session-key')
     const save = [...dialog.querySelectorAll('button')].find((button) => button.textContent?.includes('Use API key'))!
@@ -160,7 +160,7 @@ describe('Voice settings setup flow', () => {
   it('explains how to recover an older desktop process instead of showing disabled key buttons', async () => {
     await render(<Harness voice={null} />)
 
-    expect(container.textContent).toContain('Restart GooeyPi to finish enabling Voice')
+    expect(container.textContent).toContain('Restart Kim to finish enabling Voice')
     expect(container.textContent).toContain('⌘Q')
     expect([...container.querySelectorAll('button')].some((button) => button.disabled && button.textContent?.includes('Add key'))).toBe(false)
   })
@@ -196,14 +196,14 @@ describe('Voice settings setup flow', () => {
 
     await click([...container.querySelectorAll('button')].find((button) => button.textContent?.includes('Connect & test'))!)
     expect(testSelfHosted).toHaveBeenCalledWith({ url: 'http://127.0.0.1:9000', model: 'nvidia/parakeet-tdt-0.6b-v3' })
-    expect(container.textContent).toContain('Connected. GooeyPi successfully transcribed a test audio clip.')
+    expect(container.textContent).toContain('Connected. Kim successfully transcribed a test audio clip.')
   })
 
   it('turns a missing Voice IPC handler into a restart state instead of checking forever', async () => {
     const credentialStatus = vi.fn().mockRejectedValue(new Error("No handler registered for 'voice:credential-status'"))
     await render(<Harness voice={voiceBridge({ credentialStatus })} />)
 
-    expect(container.textContent).toContain('Restart GooeyPi to finish enabling Voice')
+    expect(container.textContent).toContain('Restart Kim to finish enabling Voice')
     expect(container.textContent).toContain('Restart required')
     expect(container.textContent).not.toContain('Checking…')
     expect([...container.querySelectorAll('button')].some((button) => button.textContent?.includes('Add key'))).toBe(false)

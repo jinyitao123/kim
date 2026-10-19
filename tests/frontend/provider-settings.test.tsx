@@ -183,7 +183,7 @@ describe('provider settings behavior and accessibility', () => {
   it('renders provider prompts without MCP-specific authentication claims', async () => {
     await render(<ProviderAuthModal event={{ type: 'prompt', flowId: 'flow-1', providerId: 'openai-codex', promptId: 'prompt-1', message: 'Paste the authorization code from your browser.', placeholder: 'Authorization code' }} onOpen={() => undefined} onRespond={() => undefined} onCancel={() => undefined} />)
 
-    expect(container.textContent).not.toContain('GooeyPi will finish automatically')
+    expect(container.textContent).not.toContain('Kim will finish automatically')
     expect(container.querySelector('label span')?.textContent).toBe('Paste the authorization code from your browser.')
     expect(container.querySelector('input')?.getAttribute('placeholder')).toBe('Authorization code')
   })

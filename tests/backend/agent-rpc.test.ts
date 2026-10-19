@@ -305,7 +305,7 @@ describe('agent RPC command frame bounds', () => {
         { type: 'follow_up', message },
         { type: 'set_heartbeat', schedule: '0 * * * *', prompt: message },
       ]) {
-        await expect(manager.command('runtime-auth-policy', command)).rejects.toThrow('Network MCP authentication is managed outside GooeyPi')
+        await expect(manager.command('runtime-auth-policy', command)).rejects.toThrow('Network MCP authentication is managed outside Kim')
       }
       expect(wireCommand).not.toHaveBeenCalled()
     } finally {

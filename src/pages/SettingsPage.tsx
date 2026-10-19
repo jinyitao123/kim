@@ -1,4 +1,4 @@
-import { ArrowLeft, AudioLines, Bot, Boxes, ChevronRight, Info, LockKeyhole, PawPrint, Settings2, Sun, Terminal, UserRound } from 'lucide-react'
+import { ArrowLeft, AudioLines, Bot, Boxes, ChevronRight, Info, LockKeyhole, Settings2, Sun, Terminal, UserRound } from 'lucide-react'
 import { useEffect, useState, type ComponentType } from 'react'
 import { errorMessage } from '@/lib/errors'
 import { useI18n, type MessageKey } from '@/lib/i18n'
@@ -12,7 +12,6 @@ import { BrowserSettings } from './settings/BrowserSettings'
 import type { SettingsSection, SettingsUpdate } from './settings/contracts'
 import { GeneralSettings } from './settings/GeneralSettings'
 import { PrivacySettings } from './settings/PrivacySettings'
-import { PetsSettings } from './settings/PetsSettings'
 import { ProvidersSettings } from './settings/ProviderSettings'
 import { TerminalSettings } from './settings/TerminalSettings'
 import { VoiceSettings } from './settings/VoiceSettings'
@@ -25,7 +24,6 @@ const sections: Array<{ id: SettingsSection; label: MessageKey; icon: ComponentT
   { id: 'agent', label: 'settings.harness', icon: Bot },
   { id: 'providers', label: 'settings.providers', icon: Boxes },
   { id: 'voice', label: 'settings.voice', icon: AudioLines },
-  { id: 'pets', label: 'settings.pets', icon: PawPrint },
   { id: 'browser', label: 'settings.browser', icon: BrowserGlobe },
   { id: 'terminal', label: 'settings.terminal', icon: Terminal },
   { id: 'privacy', label: 'settings.privacy', icon: LockKeyhole },
@@ -37,7 +35,6 @@ interface SettingsPageProps {
   meta?: AppMeta | null
   providerCatalog: PrimeModelCatalog | null
   voice: PrimeWorkApi['voice'] | null
-  pets: PrimeWorkApi['pets'] | null
   onUpdate: SettingsUpdate
   onClose(): void
   onResetBrowser(): Promise<void> | void
@@ -61,7 +58,7 @@ interface SettingsPageProps {
   onEnterpriseSignOut(): Promise<void>
 }
 
-export function SettingsPage({ settings, meta, providerCatalog, voice, pets, onClose, onUpdate, onResetBrowser, onOpenDocs, onRefreshProviders, onRefreshHarnesses, onSaveProviderApiKey, onLogoutProvider, onSetProviderEnabled, onSetAllProvidersEnabled, onSetAllProvidersDisabled, onSetModelEnabled, onStartProviderOAuth, enterpriseSession, onEnterpriseSignIn, onEnterpriseCancelSignIn, onEnterpriseReopenSignIn, onEnterpriseSignOut, initialSection = 'general', initialSectionRequestId = 0 }: SettingsPageProps) {
+export function SettingsPage({ settings, meta, providerCatalog, voice, onClose, onUpdate, onResetBrowser, onOpenDocs, onRefreshProviders, onRefreshHarnesses, onSaveProviderApiKey, onLogoutProvider, onSetProviderEnabled, onSetAllProvidersEnabled, onSetAllProvidersDisabled, onSetModelEnabled, onStartProviderOAuth, enterpriseSession, onEnterpriseSignIn, onEnterpriseCancelSignIn, onEnterpriseReopenSignIn, onEnterpriseSignOut, initialSection = 'general', initialSectionRequestId = 0 }: SettingsPageProps) {
   const [section, setSection] = useState<SettingsSection>(initialSection)
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetting, setResetting] = useState(false)
@@ -92,7 +89,6 @@ export function SettingsPage({ settings, meta, providerCatalog, voice, pets, onC
       case 'agent': return <AgentSettings settings={settings} meta={meta} onUpdate={onUpdate} onRefreshHarnesses={onRefreshHarnesses} />
       case 'providers': return <ProvidersSettings harness={settings.activeHarness} catalog={providerCatalog} onRefresh={onRefreshProviders} onSaveApiKey={onSaveProviderApiKey} onLogout={onLogoutProvider} onSetEnabled={onSetProviderEnabled} onSetAllEnabled={onSetAllProvidersEnabled} onSetAllDisabled={onSetAllProvidersDisabled} onSetModelEnabled={onSetModelEnabled} onStartOAuth={onStartProviderOAuth} onOpenDocs={onOpenDocs} />
       case 'voice': return <VoiceSettings settings={settings} onUpdate={onUpdate} voice={voice} platform={platform} />
-      case 'pets': return <PetsSettings settings={settings} onUpdate={onUpdate} pets={pets} />
       case 'browser': return <BrowserSettings settings={settings} onUpdate={onUpdate} onRequestReset={() => { setResetError(''); setConfirmReset(true) }} />
       case 'terminal': return <TerminalSettings settings={settings} onUpdate={onUpdate} platform={platform} />
       case 'privacy': return <PrivacySettings settings={settings} onUpdate={onUpdate} />
@@ -125,7 +121,7 @@ export function SettingsPage({ settings, meta, providerCatalog, voice, pets, onC
             </>
           )}
         >
-          <p>This signs you out of websites opened in GooeyPi and removes history, cache, cookies, and saved permissions. This cannot be undone.</p>
+          <p>This signs you out of websites opened in Kim and removes history, cache, cookies, and saved permissions. This cannot be undone.</p>
           {resetError ? <p className="settings-error" role="alert">{resetError}</p> : null}
         </Modal>
       ) : null}
