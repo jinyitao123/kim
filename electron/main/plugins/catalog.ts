@@ -1,0 +1,451 @@
+import { createHash } from 'node:crypto'
+import type { Dir } from 'node:fs'
+import { lstat, opendir, realpath } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path'
+import type { HarnessId, PluginCatalog, PluginWarning, SkillRecord } from '../../../src/types/api'
+import {
+  isAppManageableLocalMcpKey,
+  isNetworkMcpDefinition,
+  LOCAL_MCP_STATE_UNAVAILABLE_DETAIL,
+  MAX_MCP_DEFINITION_KEY_LENGTH,
+  NETWORK_MCP_UNAVAILABLE_DETAIL,
+  PRIME_MCP_MANAGEMENT_UNAVAILABLE_DETAIL,
+} from '../../../src/lib/mcp-policy'
+import { HARNESSES } from '../harness'
+import { mapLimit } from '../lib/async'
+import { isPathWithin, isRecord } from '../validation'
+import { errorCode, readAtMost } from './file-io'
+
+type Kind = SkillRecord['kind']
+type Location = SkillRecord['location']
+interface Candidate { path: string; kind: Exclude<Kind, 'package' | 'mcp'>; location: Location }
+
+/** Project-relative directory that holds a harness's project agent state. */
+const PROJECT_AGENT_SEGMENTS: Record<HarnessId, readonly string[]> = {
+  prime: ['.prime', 'agent'],
+  pi: ['.pi'],
+  loom: ['.loom'],
+}
+
+const MAX_DISCOVERY_CANDIDATES = 2_000
+const MAX_DISCOVERY_DIRECTORIES = 1_000
+const MAX_DISCOVERY_ENTRIES = 20_000
+const MAX_DISCOVERY_RECORDS = 2_500
+const MAX_MCP_DISCOVERY_RECORDS = 2_500
+const MAX_METADATA_BYTES = 128 * 1024
+const MAX_SETTINGS_BYTES = 4 * 1024 * 1024
+const METADATA_CONCURRENCY = 16
+
+interface DiscoveryBudget {
+  candidates: number
+  directories: number
+  entries: number
+  seenCandidates: Set<string>
+}
+
+function idFor(...parts: string[]): string {
+  return createHash('sha256').update(parts.join('\0')).digest('hex').slice(0, 32)
+}
+
+async function readSmall(path: string, max = MAX_METADATA_BYTES): Promise<string> {
+  try { return (await readAtMost(path, max)).content } catch { return '' }
+}
+
+function scalar(frontmatter: string, key: string): string | undefined {
+  const match = frontmatter.match(new RegExp(`^${key}:\\s*(.+)$`, 'm'))
+  if (!match) return undefined
+  const value = match[1].trim().replace(/^(?:"(.*)"|'(.*)')$/, '$1$2')
+  if (value === '|' || value === '>') return undefined
+  return value.slice(0, 500)
+}
+
+async function markdownMetadata(path: string): Promise<{ name?: string; description: string }> {
+  const content = await readSmall(path)
+  const frontmatterEnd = content.indexOf('\n---', 3)
+  const frontmatter = content.startsWith('---') ? content.slice(3, frontmatterEnd >= 0 ? frontmatterEnd : 0) : ''
+  const name = scalar(frontmatter, 'name')
+  const description = scalar(frontmatter, 'description')
+    ?? content.split(/\r?\n/).map((line) => line.trim()).find((line) => line && !line.startsWith('---') && !line.startsWith('#'))
+    ?? ''
+  return { name, description: description.slice(0, 500) }
+}
+
+function normalizedPackageSlug(source: string): string {
+  let value = source.trim().replace(/^(?:npm:|git:)/i, '').replace(/[?#].*$/, '').replace(/\.git$/i, '')
+  value = value.replace(/\/+$/, '').slice(value.lastIndexOf('/') + 1).replace(/@[^@/]+$/, '')
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 120) || 'package'
+}
+
+interface PackageMetadata {
+  name: string
+  description: string
+  associatedMcpServers?: string[]
+}
+
+async function packageMetadata(sourceValue: string, settingsPath: string): Promise<PackageMetadata> {
+  const slug = normalizedPackageSlug(sourceValue)
+  const fallback = { name: slug, description: `${slug} capability package` }
+  const rawSource = sourceValue.replace(/^(?:npm:|git:)/i, '')
+  if (sourceValue.startsWith('npm:') || sourceValue.startsWith('git:') || /^(?:https?|ssh|git):\/\//i.test(rawSource)) return fallback
+  const packageRoot = isAbsolute(rawSource) ? rawSource : resolve(dirname(settingsPath), rawSource)
+  try {
+    const value = JSON.parse(await readSmall(join(packageRoot, 'package.json'))) as unknown
+    if (!isRecord(value)) return fallback
+    const name = typeof value.displayName === 'string' && value.displayName.trim()
+      ? value.displayName.trim().slice(0, 120)
+      : typeof value.name === 'string' && value.name.trim() ? value.name.trim().slice(0, 120) : slug
+    const description = typeof value.description === 'string' && value.description.trim()
+      ? value.description.trim().slice(0, 500)
+      : `${name} capability package`
+    const gooeypi = isRecord(value.gooeypi) ? value.gooeypi : undefined
+    const associatedMcpServers = Array.isArray(gooeypi?.mcpServers)
+      ? gooeypi.mcpServers.filter((server): server is string => typeof server === 'string' && /^[A-Za-z0-9][A-Za-z0-9._ -]{0,63}$/.test(server)).slice(0, 32)
+      : undefined
+    return { name, description, ...(associatedMcpServers?.length ? { associatedMcpServers } : {}) }
+  } catch {
+    return fallback
+  }
+}
+
+interface SettingsReadResult { settings: Record<string, unknown>; warning?: PluginWarning }
+
+/**
+ * Reads settings.json with readSettingsForUpdate's strictness philosophy: a
+ * missing file is fine, but an unreadable, oversized, unparsable, or
+ * non-object file yields empty settings plus a structured warning the
+ * Plugins UI surfaces, instead of silently hiding configured plugins.
+ */
+async function readSettings(path: string, scope: PluginWarning['scope']): Promise<SettingsReadResult> {
+  const filename = basename(path)
+  const invalid = (message: string): SettingsReadResult => ({ settings: {}, warning: { scope, path, message } })
+  let content: string
+  try {
+    const value = await readAtMost(path, MAX_SETTINGS_BYTES)
+    if (value.truncated) return invalid(`${filename} is too large — plugins hidden`)
+    content = value.content
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return { settings: {} }
+    return invalid(`${filename} unreadable — plugins hidden`)
+  }
+  let value: unknown
+  try { value = JSON.parse(content) } catch { return invalid(`${filename} invalid — plugins hidden`) }
+  if (!isRecord(value)) return invalid(`${filename} invalid — plugins hidden`)
+  return { settings: value }
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try { await lstat(path); return true } catch { return false }
+}
+
+async function canonicalPath(path: string): Promise<string> {
+  try { return await realpath(path) } catch { return resolve(path) }
+}
+
+async function samePath(left: string, right: string): Promise<boolean> {
+  const [canonicalLeft, canonicalRight] = await Promise.all([canonicalPath(left), canonicalPath(right)])
+  return canonicalLeft === canonicalRight
+}
+
+function resolveConfiguredPath(value: string, base: string): string | null {
+  if (!value || /^[!+*-]/.test(value) || value.includes('*') || value.includes('?')) return null
+  const expanded = value === '~' ? homedir() : value.startsWith('~/') ? join(homedir(), value.slice(2)) : value
+  return resolve(base, expanded)
+}
+
+function isPathWithinAny(roots: readonly string[], candidate: string): boolean {
+  return roots.some((root) => isPathWithin(root, candidate))
+}
+
+function discoveryExhausted(budget: DiscoveryBudget): boolean {
+  return budget.candidates >= MAX_DISCOVERY_CANDIDATES
+    || budget.directories >= MAX_DISCOVERY_DIRECTORIES
+    || budget.entries >= MAX_DISCOVERY_ENTRIES
+}
+
+function addCandidate(candidate: Candidate, output: Candidate[], budget: DiscoveryBudget): void {
+  if (budget.candidates >= MAX_DISCOVERY_CANDIDATES) return
+  const key = `${candidate.kind}:${candidate.path}`
+  if (budget.seenCandidates.has(key)) return
+  budget.seenCandidates.add(key)
+  budget.candidates += 1
+  output.push(candidate)
+}
+
+async function collectDirectory(
+  root: string,
+  kind: Candidate['kind'],
+  location: Location,
+  output: Candidate[],
+  budget: DiscoveryBudget,
+  options: { skillRoot?: boolean; depth?: number; containmentRoots?: readonly string[] } = {},
+): Promise<void> {
+  if (discoveryExhausted(budget)) return
+  const depth = options.depth ?? 0
+  if (depth === 0 && options.containmentRoots?.length) {
+    try {
+      const canonicalRoot = await realpath(root)
+      if (!isPathWithinAny(options.containmentRoots, canonicalRoot)) return
+    } catch { return }
+  }
+
+  let directory: Dir
+  try {
+    directory = await opendir(root)
+    budget.directories += 1
+  } catch { return }
+
+  try {
+    for await (const entry of directory) {
+      if (discoveryExhausted(budget)) break
+      budget.entries += 1
+      if (entry.name.startsWith('.') || entry.name === 'node_modules') continue
+      const path = join(root, entry.name)
+      if (entry.isSymbolicLink()) continue
+      if (entry.isFile()) {
+        if (kind === 'skill' && (entry.name === 'SKILL.md' || (depth === 0 && options.skillRoot && extname(entry.name) === '.md'))) addCandidate({ path, kind, location }, output, budget)
+        else if (kind === 'prompt' && depth === 0 && extname(entry.name) === '.md') addCandidate({ path, kind, location }, output, budget)
+        else if (kind === 'extension' && (depth === 0 || /^index\.(?:[cm]?[jt]s)$/.test(entry.name)) && ['.ts', '.js', '.mjs', '.cjs'].includes(extname(entry.name))) addCandidate({ path, kind, location }, output, budget)
+      } else if (entry.isDirectory() && depth < 6) {
+        await collectDirectory(path, kind, location, output, budget, { ...options, depth: depth + 1 })
+      }
+    }
+  } catch { /* directory changed while it was being traversed */ }
+}
+
+async function collectConfigured(
+  value: unknown,
+  base: string,
+  kind: Candidate['kind'],
+  location: Location,
+  output: Candidate[],
+  budget: DiscoveryBudget,
+  containmentRoots?: readonly string[],
+): Promise<void> {
+  if (!Array.isArray(value)) return
+  for (const raw of value) {
+    if (discoveryExhausted(budget)) break
+    if (typeof raw !== 'string') continue
+    const path = resolveConfiguredPath(raw, base)
+    if (!path) continue
+    try {
+      const stat = await lstat(path)
+      if (stat.isSymbolicLink()) continue
+      const canonicalPath = await realpath(path)
+      if (containmentRoots?.length && !isPathWithinAny(containmentRoots, canonicalPath)) continue
+      if (stat.isFile()) addCandidate({ path: canonicalPath, kind, location }, output, budget)
+      else if (stat.isDirectory()) await collectDirectory(canonicalPath, kind, location, output, budget, { skillRoot: kind === 'skill', containmentRoots })
+    } catch { /* stale configured path */ }
+  }
+}
+
+
+function displayName(candidate: Candidate, metadata: { name?: string }): string {
+  if (metadata.name) return metadata.name
+  const file = basename(candidate.path)
+  if (file === 'SKILL.md' || /^index\.(?:[cm]?[jt]s)$/.test(file)) return basename(dirname(candidate.path))
+  return basename(file, extname(file))
+}
+
+async function buildCandidateRecords(candidates: Candidate[], safeProjectPath?: string, harness: HarnessId = 'prime'): Promise<SkillRecord[]> {
+  const seenPaths = new Set<string>()
+  return mapLimit(candidates, METADATA_CONCURRENCY, async (candidate): Promise<SkillRecord | null> => {
+    let path: string
+    try { path = await realpath(candidate.path) } catch { return null }
+    if (candidate.location === 'project' && (!safeProjectPath || !isPathWithin(safeProjectPath, path))) return null
+    const extension = extname(path).toLowerCase()
+    if (candidate.kind === 'prompt' && extension !== '.md') return null
+    if (candidate.kind === 'skill' && extension !== '.md') return null
+    if (candidate.kind === 'extension' && !['.ts', '.js', '.mjs', '.cjs'].includes(extension)) return null
+    const key = `${candidate.kind}:${path}`
+    if (seenPaths.has(key)) return null
+    seenPaths.add(key)
+    const metadata = candidate.kind === 'extension' ? { description: `${HARNESSES[harness].agentName} extension` } : await markdownMetadata(path)
+    const name = displayName(candidate, metadata)
+    return {
+      id: idFor(candidate.kind, path),
+      name,
+      description: metadata.description || `${candidate.kind[0].toUpperCase()}${candidate.kind.slice(1)} ${name}`,
+      kind: candidate.kind,
+      location: candidate.location,
+      path,
+      enabled: true,
+    }
+  })
+}
+
+async function addPackageSettingsMetadata(
+  settings: Record<string, unknown>,
+  settingsPath: string,
+  location: 'user' | 'project',
+  output: SkillRecord[],
+): Promise<void> {
+  if (Array.isArray(settings.packages)) {
+    for (const raw of settings.packages) {
+      if (output.length >= MAX_DISCOVERY_RECORDS) break
+      const sourceValue = typeof raw === 'string' ? raw : isRecord(raw) && typeof raw.source === 'string' ? raw.source : undefined
+      if (!sourceValue) continue
+      const source = sourceValue.slice(0, 2_048)
+      const metadata = await packageMetadata(sourceValue, settingsPath)
+      const enabled = !(isRecord(raw) && ['extensions', 'skills', 'prompts', 'themes'].every((key) => Array.isArray(raw[key]) && raw[key].length === 0))
+      output.push({ id: idFor('package', location, sourceValue), ...metadata, kind: 'package', location, enabled, source })
+    }
+  }
+}
+
+function addMcpSettingsMetadata(
+  settings: Record<string, unknown>,
+  settingsPath: string,
+  location: 'user' | 'project',
+  output: SkillRecord[],
+  warnings: PluginWarning[],
+  harness: HarnessId = 'prime',
+  // Only Prime loads MCP definitions from settings.json. Pi reads mcp.json
+  // through its adapter extension; surfacing a stray
+  // settings.json key would make UI actions target a different definition.
+  includeMcpServers: boolean = harness === 'prime',
+): void {
+  if (!includeMcpServers || !isRecord(settings.mcpServers)) return
+  const entries = Object.entries(settings.mcpServers)
+  if (entries.length > MAX_MCP_DISCOVERY_RECORDS) {
+    warnings.push({
+      scope: location,
+      path: settingsPath,
+      message: `MCP discovery is limited to 2,500 definitions in this file; remaining entries are managed directly in ${HARNESSES[harness].agentName}.`,
+    })
+  }
+  for (const [name, raw] of entries.slice(0, MAX_MCP_DISCOVERY_RECORDS)) {
+    const definition = isRecord(raw) ? raw : undefined
+    const displayName = [...name.slice(0, 120)].map((character) => {
+      const code = character.charCodeAt(0)
+      return code < 32 || code === 127 ? '�' : character
+    }).join('') || 'Unnamed MCP server'
+    const definitionIdentity = name.length <= MAX_MCP_DEFINITION_KEY_LENGTH
+      ? { definitionKey: name }
+      : { definitionRemovalAvailable: false }
+    const enabled = definition?.enabled !== false
+    if (definition && isNetworkMcpDefinition(definition)) {
+      let origin = 'remote HTTP server'
+      try { const url = new URL(typeof definition.url === 'string' ? definition.url : ''); origin = url.protocol === 'https:' || url.protocol === 'http:' ? url.origin : 'remote server' } catch { /* omit invalid and potentially secret URL */ }
+      const transport = definition.type === 'sse' ? 'SSE' : 'HTTP'
+      output.push({
+        id: idFor('mcp', location, name), name: displayName,
+        description: `${transport} MCP server at ${origin}. Managed outside GooeyPi.`,
+        kind: 'mcp', location, enabled, source: origin, ...definitionIdentity,
+        availability: { available: false, detail: NETWORK_MCP_UNAVAILABLE_DETAIL },
+      })
+    } else if (definition && (definition.type === 'stdio' || harness === 'pi' || harness === 'prime') && typeof definition.command === 'string') {
+      const command = basename(definition.command).slice(0, 120)
+      const availability = harness === 'prime'
+        ? { available: false as const, detail: PRIME_MCP_MANAGEMENT_UNAVAILABLE_DETAIL }
+        : !isAppManageableLocalMcpKey(name)
+          ? { available: false as const, detail: LOCAL_MCP_STATE_UNAVAILABLE_DETAIL }
+          : undefined
+      output.push({
+        id: idFor('mcp', location, name), name: displayName,
+        description: `Local stdio MCP server (${command})${harness === 'prime' ? '. Managed outside GooeyPi.' : ''}`,
+        kind: 'mcp', location, enabled, source: command, ...definitionIdentity,
+        ...(availability ? { availability } : {}),
+      })
+    } else if (harness === 'prime') {
+      output.push({
+        id: idFor('mcp', location, name), name: displayName,
+        description: 'Prime Agent MCP definition with an externally managed format.',
+        kind: 'mcp', location, enabled, source: 'Prime Agent settings', ...definitionIdentity,
+        availability: { available: false, detail: PRIME_MCP_MANAGEMENT_UNAVAILABLE_DETAIL },
+      })
+    }
+  }
+}
+
+async function bundledSkillsDirectory(primeAgentPath: string | null): Promise<string | null> {
+  if (!primeAgentPath) return null
+  try {
+    const executable = await realpath(primeAgentPath)
+    const packageRoot = resolve(dirname(executable), '..', '..')
+    const candidate = join(packageRoot, 'skills')
+    return await pathExists(candidate) ? candidate : null
+  } catch { return null }
+}
+
+export async function discoverPlugins(agentDir: string, safeProjectPath: string | undefined, agentPath: string | null, harness: HarnessId = 'prime', options: { includeSharedUserSkills?: boolean } = {}): Promise<PluginCatalog> {
+  const candidates: Candidate[] = []
+  const warnings: PluginWarning[] = []
+  const budget: DiscoveryBudget = { candidates: 0, directories: 0, entries: 0, seenCandidates: new Set() }
+  const globalRead = await readSettings(join(agentDir, 'settings.json'), 'user')
+  if (globalRead.warning) warnings.push(globalRead.warning)
+  const globalSettings = globalRead.settings
+
+  await collectDirectory(join(agentDir, 'skills'), 'skill', 'user', candidates, budget, { skillRoot: true })
+  if (options.includeSharedUserSkills !== false) await collectDirectory(join(homedir(), '.agents', 'skills'), 'skill', 'user', candidates, budget)
+  await collectDirectory(join(agentDir, 'extensions'), 'extension', 'user', candidates, budget)
+  await collectDirectory(join(agentDir, 'prompts'), 'prompt', 'user', candidates, budget)
+  const userConfiguredRoots = await Promise.all([agentDir, homedir()].map(async (root) => {
+    try { return await realpath(root) } catch { return root }
+  }))
+  await collectConfigured(globalSettings.skills, agentDir, 'skill', 'user', candidates, budget, userConfiguredRoots)
+  await collectConfigured(globalSettings.extensions, agentDir, 'extension', 'user', candidates, budget, userConfiguredRoots)
+  await collectConfigured(globalSettings.prompts, agentDir, 'prompt', 'user', candidates, budget, userConfiguredRoots)
+
+  const bundled = await bundledSkillsDirectory(harness === 'prime' ? agentPath : null)
+  if (bundled) await collectDirectory(bundled, 'skill', 'bundled', candidates, budget)
+
+  let projectSettings: Record<string, unknown> = {}
+  if (safeProjectPath && isAbsolute(safeProjectPath) && await pathExists(safeProjectPath)) {
+    const projectAgentDir = join(safeProjectPath, ...PROJECT_AGENT_SEGMENTS[harness])
+    const projectSettingsPath = join(projectAgentDir, 'settings.json')
+    const projectSkillsDir = join(safeProjectPath, '.agents', 'skills')
+    const [sameAgentDir, sameSettingsFile, sameProjectSkillsDir] = await Promise.all([
+      samePath(agentDir, projectAgentDir),
+      samePath(join(agentDir, 'settings.json'), projectSettingsPath),
+      samePath(join(homedir(), '.agents', 'skills'), projectSkillsDir),
+    ])
+    const projectRoots = [safeProjectPath]
+    // A project can point back at the same Prime settings and shared skills
+    // directories. Discover those paths once as user-scoped records instead
+    // of presenting every entry twice.
+    if (!sameSettingsFile) {
+      const projectRead = await readSettings(projectSettingsPath, 'project')
+      if (projectRead.warning) warnings.push(projectRead.warning)
+      projectSettings = projectRead.settings
+    }
+    if (!sameAgentDir) {
+      await collectDirectory(join(projectAgentDir, 'skills'), 'skill', 'project', candidates, budget, { skillRoot: true, containmentRoots: projectRoots })
+      await collectDirectory(join(projectAgentDir, 'extensions'), 'extension', 'project', candidates, budget, { containmentRoots: projectRoots })
+      await collectDirectory(join(projectAgentDir, 'prompts'), 'prompt', 'project', candidates, budget, { containmentRoots: projectRoots })
+      if (!sameSettingsFile) {
+        await collectConfigured(projectSettings.skills, projectAgentDir, 'skill', 'project', candidates, budget, projectRoots)
+        await collectConfigured(projectSettings.extensions, projectAgentDir, 'extension', 'project', candidates, budget, projectRoots)
+        await collectConfigured(projectSettings.prompts, projectAgentDir, 'prompt', 'project', candidates, budget, projectRoots)
+      }
+    }
+    if (!sameProjectSkillsDir) {
+      await collectDirectory(projectSkillsDir, 'skill', 'project', candidates, budget, { containmentRoots: projectRoots })
+    }
+  }
+
+  const result = await buildCandidateRecords(candidates, safeProjectPath, harness)
+  const mcpRecords: SkillRecord[] = []
+  const globalSettingsPath = join(agentDir, 'settings.json')
+  const projectSettingsPath = safeProjectPath ? join(safeProjectPath, ...PROJECT_AGENT_SEGMENTS[harness], 'settings.json') : ''
+  await addPackageSettingsMetadata(globalSettings, globalSettingsPath, 'user', result)
+  await addPackageSettingsMetadata(projectSettings, projectSettingsPath, 'project', result)
+  addMcpSettingsMetadata(globalSettings, globalSettingsPath, 'user', mcpRecords, warnings, harness)
+  addMcpSettingsMetadata(projectSettings, projectSettingsPath, 'project', mcpRecords, warnings, harness)
+  // Pi reads mcp.json through the pi-mcp-adapter extension
+  // (~/.pi/agent/mcp.json and project .pi/mcp.json).
+  if (harness !== 'prime') {
+    const globalMcpPath = join(agentDir, 'mcp.json')
+    const globalMcp = await readSettings(globalMcpPath, 'user')
+    if (globalMcp.warning) warnings.push(globalMcp.warning)
+    addMcpSettingsMetadata(globalMcp.settings, globalMcpPath, 'user', mcpRecords, warnings, harness, true)
+    if (safeProjectPath) {
+      const projectMcpPath = join(safeProjectPath, ...PROJECT_AGENT_SEGMENTS[harness], 'mcp.json')
+      const projectMcp = await readSettings(projectMcpPath, 'project')
+      if (projectMcp.warning) warnings.push(projectMcp.warning)
+      addMcpSettingsMetadata(projectMcp.settings, projectMcpPath, 'project', mcpRecords, warnings, harness, true)
+    }
+  }
+  result.push(...mcpRecords)
+  return { skills: result.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)), warnings }
+}

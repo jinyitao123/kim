@@ -1,0 +1,242 @@
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { ExtensionUiResponse } from '@/components/ExtensionUiModal'
+import { ASK_USER_TIMEOUT_MS, parseExtensionUiRequest, type ExtensionUiRequest } from '@/lib/extension-ui'
+import type { PrimeWorkApi, RuntimeInfo, SessionRecord } from '@/types/api'
+
+interface UseExtensionUiOptions {
+  bridge: PrimeWorkApi | null
+  activeRuntimeId?: string
+  runtimeSessionsRef: React.RefObject<Map<string, string>>
+  setSessions: React.Dispatch<React.SetStateAction<SessionRecord[]>>
+  setRuntime: React.Dispatch<React.SetStateAction<RuntimeInfo | null>>
+  reportError(error: unknown): void
+}
+
+type QuestionnaireSelectRequest = Extract<ExtensionUiRequest, { method: 'select' }>
+
+export interface PendingExtensionUi {
+  runtimeId: string
+  request: ExtensionUiRequest
+  requests?: QuestionnaireSelectRequest[]
+}
+
+export function pendingExtensionUiForRuntime(
+  pending: ReadonlyMap<string, PendingExtensionUi>,
+  runtimeId?: string,
+): PendingExtensionUi | null {
+  return runtimeId ? pending.get(runtimeId) ?? null : null
+}
+
+function requestIds(pending: PendingExtensionUi): string[] {
+  return pending.request.method === 'questionnaire'
+    ? (pending.requests ?? []).map((request) => request.id)
+    : [pending.request.id]
+}
+
+export function useExtensionUi({
+  bridge,
+  activeRuntimeId,
+  runtimeSessionsRef,
+  setSessions,
+  setRuntime,
+  reportError,
+}: UseExtensionUiOptions) {
+  const [extensionUi, setExtensionUi] = useState<PendingExtensionUi | null>(null)
+  const extensionUiRef = useRef<PendingExtensionUi | null>(null)
+  const pendingByRuntimeRef = useRef<Map<string, PendingExtensionUi>>(new Map())
+  const timerByRuntimeRef = useRef<Map<string, number>>(new Map())
+  const timedOutQuestionnairesRef = useRef<Set<string>>(new Set())
+  const activeRuntimeIdRef = useRef(activeRuntimeId)
+  useLayoutEffect(() => { activeRuntimeIdRef.current = activeRuntimeId })
+
+  const showPendingForActiveRuntime = useCallback(() => {
+    const visible = pendingExtensionUiForRuntime(pendingByRuntimeRef.current, activeRuntimeIdRef.current)
+    extensionUiRef.current = visible
+    setExtensionUi(visible)
+  }, [])
+
+  const clearExtensionUi = useCallback((runtimeId?: string) => {
+    const targetRuntimeId = runtimeId ?? extensionUiRef.current?.runtimeId
+    if (!targetRuntimeId) return
+    const timer = timerByRuntimeRef.current.get(targetRuntimeId)
+    if (timer !== undefined) window.clearTimeout(timer)
+    timerByRuntimeRef.current.delete(targetRuntimeId)
+    pendingByRuntimeRef.current.delete(targetRuntimeId)
+    if (extensionUiRef.current?.runtimeId === targetRuntimeId) {
+      extensionUiRef.current = null
+      setExtensionUi(null)
+    }
+  }, [])
+
+  const cancelPending = useCallback((pending: PendingExtensionUi) => {
+    if (!bridge) return
+    for (const id of requestIds(pending)) {
+      void bridge.agent.command(pending.runtimeId, {
+        type: 'extension_ui_response',
+        id,
+        cancelled: true,
+      }).catch(() => undefined)
+    }
+  }, [bridge])
+
+  const respondToExtensionUi = useCallback(async (response: ExtensionUiResponse) => {
+    const pending = extensionUiRef.current
+    if (!pending) return
+    clearExtensionUi(pending.runtimeId)
+    if ('cancelled' in response && response.cancelled) {
+      if (!bridge) return
+      try {
+        await bridge.agent.stop(pending.runtimeId)
+        setRuntime((current) => current?.runtimeId === pending.runtimeId ? { ...current, isStreaming: false } : current)
+      } catch (error) {
+        // If stopping the runtime fails, still resolve the extension request so
+        // it cannot remain blocked behind a dialog that is no longer visible.
+        cancelPending(pending)
+        setRuntime((current) => current?.runtimeId === pending.runtimeId ? { ...current, isStreaming: false } : current)
+        if (activeRuntimeIdRef.current === pending.runtimeId) reportError(error)
+      }
+      return
+    }
+    setRuntime((current) => current?.runtimeId === pending.runtimeId ? { ...current, isStreaming: true } : current)
+    const pendingSession = runtimeSessionsRef.current.get(pending.runtimeId)
+    if (pendingSession) {
+      setSessions((items) => items.map((session) => session.filePath === pendingSession
+        ? { ...session, status: 'running', unread: false }
+        : session))
+    }
+    if (!bridge) return
+    try {
+      if (pending.request.method === 'questionnaire') {
+        if ('values' in response) {
+          for (const request of pending.requests ?? []) {
+            await bridge.agent.command(pending.runtimeId, {
+              type: 'extension_ui_response',
+              id: request.id,
+              value: response.values[request.id] ?? '',
+            })
+          }
+        } else {
+          for (const id of requestIds(pending)) {
+            await bridge.agent.command(pending.runtimeId, {
+              type: 'extension_ui_response',
+              id,
+              cancelled: true,
+            })
+          }
+        }
+        return
+      }
+      await bridge.agent.command(pending.runtimeId, {
+        type: 'extension_ui_response',
+        id: pending.request.id,
+        ...response,
+      })
+    } catch (error) {
+      setRuntime((current) => current?.runtimeId === pending.runtimeId ? { ...current, isStreaming: false } : current)
+      if (activeRuntimeIdRef.current === pending.runtimeId) reportError(error)
+    }
+  }, [bridge, cancelPending, clearExtensionUi, reportError, runtimeSessionsRef, setRuntime, setSessions])
+
+  const scheduleTimeout = useCallback((pending: PendingExtensionUi) => {
+    const timeout = 'timeout' in pending.request ? pending.request.timeout : undefined
+    if (timeout === undefined || timerByRuntimeRef.current.has(pending.runtimeId)) return
+    timerByRuntimeRef.current.set(pending.runtimeId, window.setTimeout(() => {
+      const current = pendingByRuntimeRef.current.get(pending.runtimeId)
+      if (!current || current.request.id !== pending.request.id) return
+      if (current.request.method === 'questionnaire') timedOutQuestionnairesRef.current.add(`${pending.runtimeId}:${pending.request.id}`)
+      cancelPending(current)
+      clearExtensionUi(pending.runtimeId)
+    }, timeout))
+  }, [cancelPending, clearExtensionUi])
+
+  const showExtensionUi = useCallback((runtimeId: string, rawEvent: Record<string, unknown>) => {
+    const request = parseExtensionUiRequest(rawEvent)
+    if (!request || !bridge) return
+
+    if (request.method === 'select' && request.questionnaire) {
+      const questionnaireKey = `${runtimeId}:${request.questionnaire.groupId}`
+      if (timedOutQuestionnairesRef.current.has(questionnaireKey)) {
+        void bridge.agent.command(runtimeId, {
+          type: 'extension_ui_response',
+          id: request.id,
+          cancelled: true,
+        }).catch(() => undefined)
+        return
+      }
+      const previous = pendingByRuntimeRef.current.get(runtimeId)
+      const sameQuestionnaire = previous?.request.method === 'questionnaire' && previous.request.id === request.questionnaire.groupId
+      if (previous && !sameQuestionnaire) {
+        cancelPending(previous)
+        clearExtensionUi(runtimeId)
+      }
+
+      const existing = sameQuestionnaire ? previous?.requests ?? [] : []
+      const requests = existing.some((item) => item.id === request.id)
+        ? existing
+        : [...existing, request]
+      const questions = requests
+        .map((item) => ({
+          id: item.id,
+          title: item.title,
+          options: item.options,
+          index: item.questionnaire?.index ?? 0,
+        }))
+        .sort((a, b) => a.index - b.index)
+      const total = request.questionnaire.total
+      const pending: PendingExtensionUi = {
+        runtimeId,
+        request: {
+          method: 'questionnaire',
+          id: request.questionnaire.groupId,
+          title: `Answer ${total} question${total === 1 ? '' : 's'}`,
+          questions,
+          total,
+          complete: questions.length >= total,
+          timeout: previous?.request.method === 'questionnaire'
+            ? previous.request.timeout
+            : request.timeout ?? ASK_USER_TIMEOUT_MS,
+        },
+        requests,
+      }
+      pendingByRuntimeRef.current.set(runtimeId, pending)
+      if (activeRuntimeIdRef.current === runtimeId) {
+        extensionUiRef.current = pending
+        setExtensionUi(pending)
+      }
+      scheduleTimeout(pending)
+      return
+    }
+
+    const previous = pendingByRuntimeRef.current.get(runtimeId)
+    if (previous) {
+      cancelPending(previous)
+      clearExtensionUi(runtimeId)
+    }
+    const pending = { runtimeId, request }
+    pendingByRuntimeRef.current.set(runtimeId, pending)
+    if (activeRuntimeIdRef.current === runtimeId) {
+      extensionUiRef.current = pending
+      setExtensionUi(pending)
+    }
+    scheduleTimeout(pending)
+  }, [bridge, cancelPending, clearExtensionUi, scheduleTimeout])
+
+  const hasOpenRequestForSession = useCallback((filePath: string): boolean => {
+    for (const runtimeId of pendingByRuntimeRef.current.keys()) {
+      if (runtimeSessionsRef.current.get(runtimeId) === filePath) return true
+    }
+    return false
+  }, [runtimeSessionsRef])
+
+  useEffect(() => { showPendingForActiveRuntime() }, [activeRuntimeId, showPendingForActiveRuntime])
+
+  useEffect(() => () => {
+    for (const timer of timerByRuntimeRef.current.values()) window.clearTimeout(timer)
+    for (const pending of pendingByRuntimeRef.current.values()) cancelPending(pending)
+    timerByRuntimeRef.current.clear()
+    pendingByRuntimeRef.current.clear()
+    timedOutQuestionnairesRef.current.clear()
+  }, [cancelPending])
+
+  return { extensionUi, clearExtensionUi, respondToExtensionUi, showExtensionUi, hasOpenRequestForSession }
+}

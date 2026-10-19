@@ -1,0 +1,2527 @@
+import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, truncateSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { describe, expect, test, vi } from 'vitest'
+import {
+  bootstrapNpm,
+  parsePinnedNpmArtifact,
+  persistNpmCliPath,
+  persistNpmShimDirectory,
+  readPinnedNpmArtifact,
+  resolveNpmGlobalLayout,
+  verifyPinnedNpmArtifact,
+} from '../scripts/release/bootstrap-npm.mjs'
+import { installAppDependencies } from '../scripts/release/install-app-deps.mjs'
+import {
+  artifactArchitectures,
+  assertArchitectureCoverage,
+  assertAsarLayout,
+  assertExactArchitectures,
+  assertPackagedExtensions,
+  assertSupportedNpm,
+  assertSupportedNode,
+  assertSupportedToolchain,
+  assertUnpackedNativeLayout,
+  expectedUnpackedNativeLayout,
+  parseToolchainMetadata,
+  parseArchitectures,
+  parseTeamIdentifier,
+  readNpmOutput,
+  readNpmVersion,
+  readRepositoryToolchain,
+  requireReleaseArtifacts,
+  resolveCommandInvocation,
+  validateReleaseCredentials,
+  validateWindowsReleaseCredentials,
+  withoutReleaseCredentials,
+} from '../scripts/release/lib.mjs'
+import { SHIPPED_EXTENSION_FILENAMES } from '../electron/main/extension-manifest'
+import { producedReleaseArtifactNames, readElectronBuilderConfig, RELEASE_BUILD_MATRIX } from '../scripts/release/artifact-names.mjs'
+import {
+  expectedDownloadedReleaseAssets,
+  expectedGitHubReleaseAssets,
+  mergeUpdateMetadata,
+  parseReleasePlatforms,
+  prepareGitHubRelease,
+  releaseAssetNames,
+} from '../scripts/release/prepare-github-release.mjs'
+import { parseDraftAssetNames, staleDraftReleaseAssets } from '../scripts/release/prune-draft-release-assets.mjs'
+import { assertBundleSizeBudgets, assertPackageSizeBudgets, BUNDLE_SIZE_BUDGETS, collectBundleSizeMetrics, collectPackageSizeMetrics, PACKAGE_SIZE_BUDGETS } from '../scripts/release/size-budgets.mjs'
+import { assertReleaseTag } from '../scripts/release/validate-release-tag.mjs'
+// after-pack.cjs is CommonJS; the interop layer exposes module.exports properties as named exports.
+import { executablePath } from '../scripts/release/after-pack.cjs'
+import { runtimeTarget } from '../scripts/release/electron-builder.mjs'
+import { collectAuditAdvisories, describeAuditEvaluation, evaluateAuditReport, parseAuditExceptions, readAuditExceptions } from '../scripts/release/audit-exceptions.mjs'
+import {
+  assertValidAuthenticode,
+  assertUnpackedNativeLayout as assertCrossPlatformUnpackedNativeLayout,
+  expectedArtifactExtensions,
+  expectedAuthenticodeSigner,
+  expectedNativeFiles,
+  packagedExecutablePath,
+  nativeRuntimeDirectory,
+  zeroMqAddonPattern,
+} from '../scripts/release/verify-cross-platform-package.mjs'
+
+// js-yaml ships no type declarations, so it is required rather than imported.
+const load = createRequire(import.meta.url)('js-yaml').load as (source: string) => unknown
+
+const baseEnvironment = {
+  RELEASE_SIGNING_TEAM_ID: 'TEAM123',
+  CSC_LINK: 'base64-certificate',
+  CSC_KEY_PASSWORD: 'certificate-password',
+  APPLE_ID: 'release@example.com',
+  APPLE_APP_SPECIFIC_PASSWORD: 'app-password',
+  APPLE_TEAM_ID: 'TEAM123',
+}
+
+const FIXTURE_ZEROMQ_DIRECTORIES = new Map([
+  ['arm64', 'arm64'],
+  ['x86_64', 'x64'],
+])
+
+function fixtureAddonPath(architecture: string, runtime = 'libc-115-Release') {
+  return `node_modules/zeromq/build/darwin/${FIXTURE_ZEROMQ_DIRECTORIES.get(architecture)}/node/${runtime}/addon.node`
+}
+
+function createUnpackedFixture(architectures = new Set(['arm64'])) {
+  const directory = mkdtempSync(join(tmpdir(), 'prime-work-unpacked-'))
+  const relativePaths = [...expectedUnpackedNativeLayout(architectures).files, ...[...architectures].map((architecture) => fixtureAddonPath(architecture))]
+  for (const relativePath of relativePaths) {
+    const path = join(directory, relativePath)
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, 'fixture')
+  }
+  return directory
+}
+
+function writeSizedFile(path: string, bytes: number) {
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, '')
+  truncateSync(path, bytes)
+}
+
+function writeUpdateManifest(directory: string, name: string, url: string, sha512: string, releaseDate: string) {
+  const path = join(directory, name, 'latest-mac.yml')
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, `version: 0.2.0\nreleaseDate: '${releaseDate}'\nfiles:\n  - url: ${url}\n    sha512: ${sha512}\n    size: 42\npath: ${url}\nsha512: ${sha512}\n`)
+  return path
+}
+
+/** A complete downloaded macOS release artifact tree, optionally missing one produced artifact. */
+function writeMacReleaseFixture(directory: string, { omit }: { omit?: string } = {}) {
+  const projectDirectory = join(directory, 'project')
+  const inputDirectory = join(directory, 'downloaded')
+  mkdirSync(projectDirectory, { recursive: true })
+  mkdirSync(inputDirectory, { recursive: true })
+  writeFileSync(join(projectDirectory, 'package.json'), JSON.stringify({ version: '0.2.0' }))
+  writeFileSync(
+    join(projectDirectory, 'package-lock.json'),
+    JSON.stringify({
+      version: '0.2.0',
+      packages: { '': { version: '0.2.0' } },
+    }),
+  )
+  for (const [index, name] of expectedDownloadedReleaseAssets('0.2.0', ['mac']).entries()) {
+    if (name === omit) continue
+    const artifactDirectory = join(inputDirectory, `artifact-${index}`)
+    mkdirSync(artifactDirectory, { recursive: true })
+    const content = name.endsWith('.yml')
+      ? 'version: 0.2.0\nfiles:\n  - url: Weave Workbench-0.2.0-x64.zip\n    sha512: x64-digest\n    size: 42\npath: Weave Workbench-0.2.0-x64.zip\nsha512: x64-digest\n'
+      : `asset ${index}`
+    writeFileSync(join(artifactDirectory, name), content)
+  }
+  return { projectDirectory, inputDirectory }
+}
+
+function createBundleSizeFixture() {
+  const directory = mkdtempSync(join(tmpdir(), 'prime-work-bundle-size-'))
+  writeSizedFile(join(directory, 'main/index.js'), 101)
+  writeSizedFile(join(directory, 'preload/index.js'), 102)
+  writeSizedFile(join(directory, 'renderer/assets/entry.js'), 103)
+  writeSizedFile(join(directory, 'renderer/assets/vendor.js'), 104)
+  writeSizedFile(join(directory, 'renderer/assets/lazy.js'), 105)
+  writeSizedFile(join(directory, 'renderer/assets/app.css'), 106)
+  writeFileSync(
+    join(directory, 'renderer/index.html'),
+    '<script type="module" src="./assets/entry.js"></script><link rel="modulepreload" href="./assets/vendor.js"><link rel="stylesheet" href="./assets/app.css">',
+  )
+  return directory
+}
+
+const PINNED_NPM_INTEGRITY = 'sha512-uIXokLlBj6FpNUTQX1PmT5pz7BlIN9QlixX+zdaSNHsd0qUXsbDLr50xzY6Sw7cJVr0uzHKDOle0swmPW/p5Qw=='
+
+function npmArtifactManifest(size: number, overrides: Record<string, unknown> = {}) {
+  return JSON.stringify({
+    artifacts: {
+      npm: {
+        version: '12.0.2',
+        path: 'vendor/npm-12.0.2.tgz',
+        source: 'https://registry.npmjs.org/npm/-/npm-12.0.2.tgz',
+        integrity: PINNED_NPM_INTEGRITY,
+        size,
+        license: 'Artistic-2.0',
+        ...overrides,
+      },
+    },
+  })
+}
+
+function createPinnedNpmArtifactFixture(contents = Buffer.from('verified npm archive fixture')) {
+  const temporaryDirectory = mkdtempSync(join(tmpdir(), 'gooeypi npm artifact & '))
+  const repositoryRoot = join(temporaryDirectory, 'repository with spaces & metacharacters')
+  const artifactPath = join(repositoryRoot, 'vendor', 'npm-12.0.2.tgz')
+  mkdirSync(dirname(artifactPath), { recursive: true })
+  writeFileSync(artifactPath, contents)
+  const integrity = `sha512-${createHash('sha512').update(contents).digest('base64')}`
+  const manifest = npmArtifactManifest(contents.length, { integrity })
+  const artifact = parsePinnedNpmArtifact(manifest, { node: '24.15.0', npm: '12.0.2' }, repositoryRoot)
+  return {
+    temporaryDirectory,
+    repositoryRoot,
+    artifactPath,
+    artifact,
+    manifest,
+    contents,
+    integrity,
+  }
+}
+
+describe('release preflight', () => {
+  test('package.mjs --dry-run says nothing executed instead of claiming success', () => {
+    const platform = process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux'
+    const result = spawnSync(process.execPath, ['scripts/release/package.mjs', '--qa', '--platform', platform, '--dry-run'], { encoding: 'utf8' })
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toContain('DRY RUN — nothing executed.')
+    expect(result.stdout).not.toContain('pipeline passed')
+  })
+
+  test('verify-package runs when invoked as a script and fails closed on a missing entrypoint', async () => {
+    const { invokedAsScript } = await import('../scripts/release/verify-package.mjs')
+    const original = process.argv[1]
+    try {
+      process.argv[1] = fileURLToPath(new URL('../scripts/release/verify-package.mjs', import.meta.url))
+      expect(invokedAsScript()).toBe(true)
+      process.argv[1] = join(tmpdir(), 'another-entrypoint.mjs')
+      expect(invokedAsScript()).toBe(false)
+      process.argv[1] = undefined as unknown as string
+      expect(invokedAsScript()).toBe(true)
+    } finally {
+      process.argv[1] = original
+    }
+  })
+
+  test('binds the requested target architecture to the produced mac artifacts', async () => {
+    const { assertBooleanEntitlement, assertRequestedArchitecture, verifyAppBundleIdentifier, verifyCodeSignatureIfPresent } = await import('../scripts/release/verify-package.mjs')
+    const artifacts = {
+      dmg: 'release/mac/arm64/Prime Work-1.0.0-arm64.dmg',
+      zip: 'release/mac/arm64/Prime Work-1.0.0-arm64.zip',
+    }
+    expect(() => assertRequestedArchitecture(artifacts, 'arm64')).not.toThrow()
+    expect(() => assertRequestedArchitecture(artifacts, undefined)).not.toThrow()
+    expect(() => assertRequestedArchitecture(artifacts, 'x64')).toThrow(/declares architecture arm64, but --arch x64 was requested/)
+    expect(() => assertRequestedArchitecture({ ...artifacts, zip: 'release/mac/x64/Prime Work-1.0.0-x64.zip' }, 'arm64')).toThrow(/declares architecture x64/)
+    expect(() => assertRequestedArchitecture(artifacts, 'universal')).toThrow(/must be arm64 or x64/)
+    expect(() => assertRequestedArchitecture(artifacts, '')).toThrow(/must be arm64 or x64/)
+    // package.mjs forwards the authoritative arch into mac post-package verification.
+    expect(readFileSync('scripts/release/package.mjs', 'utf8')).toContain("'--arch', arch, '--release-directory'")
+
+    const entitlement = 'com.apple.security.device.audio-input'
+    expect(() => assertBooleanEntitlement(`<key>${entitlement}</key><true/>`, entitlement, 'fixture')).not.toThrow()
+    expect(() => assertBooleanEntitlement(`[Key] ${entitlement}\n[Value]\n[Bool] true`, entitlement, 'fixture')).not.toThrow()
+    expect(() => assertBooleanEntitlement(`<key>${entitlement}</key><false/>`, entitlement, 'fixture')).toThrow(/missing required true entitlement/)
+
+    const app = '/tmp/Weave Workbench.app'
+    const plist = `${app}/Contents/Info.plist`
+    const expectedAppId = (
+      JSON.parse(readFileSync('package.json', 'utf8')) as {
+        build: { appId: string }
+      }
+    ).build.appId
+    const readIdentifier = vi.fn(() => `${expectedAppId}\n`)
+    expect(verifyAppBundleIdentifier(app, expectedAppId, readIdentifier)).toBe(expectedAppId)
+    expect(readIdentifier).toHaveBeenCalledWith('plutil', ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', plist])
+    expect(() => verifyAppBundleIdentifier(app, expectedAppId, () => 'app.gooeypi.desktop.localdev')).toThrow(/does not match package\.json build\.appId/)
+  })
+
+  test('strictly checks QA signatures without treating packaging as business acceptance', async () => {
+    const { QA_PACKAGE_SCOPE_NOTICE, verifyCodeSignatureIfPresent } = await import('../scripts/release/verify-package.mjs')
+    const app = '/tmp/Weave Workbench.app'
+    expect(readFileSync('CONTRIBUTING.md', 'utf8')).toContain('unsigned, unnotarized local-QA artifacts')
+    expect(QA_PACKAGE_SCOPE_NOTICE).toContain('engineering-only')
+    expect(QA_PACKAGE_SCOPE_NOTICE).toContain('Package checks do not establish employee handoff or business acceptance')
+    const unsigned = vi.fn(() => {
+      throw new Error('codesign failed: code object is not signed at all')
+    })
+    expect(verifyCodeSignatureIfPresent(app, { runCommand: unsigned })).toBeUndefined()
+    expect(unsigned).toHaveBeenCalledOnce()
+    expect(() =>
+      verifyCodeSignatureIfPresent(app, {
+        required: true,
+        runCommand: unsigned,
+      }),
+    ).toThrow(/must have a valid code signature/)
+
+    const expectedAppId = (
+      JSON.parse(readFileSync('package.json', 'utf8')) as {
+        build: { appId: string }
+      }
+    ).build.appId
+    const signed = vi.fn().mockReturnValueOnce(`Identifier=${expectedAppId}`).mockReturnValueOnce('')
+    expect(verifyCodeSignatureIfPresent(app, { runCommand: signed })).toContain(`Identifier=${expectedAppId}`)
+    expect(signed).toHaveBeenNthCalledWith(1, 'codesign', ['-dv', '--verbose=4', app])
+    expect(signed).toHaveBeenNthCalledWith(2, 'codesign', ['--verify', '--deep', '--strict', '--verbose=4', app])
+
+    const brokenAfterModification = vi
+      .fn()
+      .mockReturnValueOnce('Identifier=com.inocube.weave-workbench')
+      .mockImplementationOnce(() => {
+        throw new Error('code signature invalid after Info.plist modification')
+      })
+    expect(() =>
+      verifyCodeSignatureIfPresent(app, {
+        runCommand: brokenAfterModification,
+      }),
+    ).toThrow(/code signature invalid after Info\.plist modification/)
+  })
+
+  test('enforces the repository Node and npm boundaries from checked-in metadata', () => {
+    expect(readRepositoryToolchain()).toEqual({
+      node: '24.15.0',
+      npm: '12.0.2',
+    })
+    expect(() => assertSupportedNode('v24.14.99')).toThrow(/Node\.js >=24\.15\.0 is required/)
+    expect(() => assertSupportedNode('v24.15.0')).not.toThrow()
+    expect(() => assertSupportedNode('v25.0.0')).not.toThrow()
+    expect(() => assertSupportedNpm('12.0.1')).toThrow(/npm >=12\.0\.2 is required/)
+    expect(() => assertSupportedNpm('12.0.2')).not.toThrow()
+    expect(() => assertSupportedNpm('13.0.0')).not.toThrow()
+    expect(() =>
+      assertSupportedToolchain({
+        nodeVersion: 'v24.15.0',
+        npmVersion: '12.0.2',
+      }),
+    ).not.toThrow()
+  })
+
+  test('rejects malformed and prerelease tool versions', () => {
+    for (const version of ['24.15', 'v24.15.0 trailing', 'not-node']) {
+      expect(() => assertSupportedNode(version)).toThrow(/Cannot parse Node\.js version/)
+    }
+    expect(() => assertSupportedNode('v24.15.0-rc.1')).toThrow(/stable Node\.js release/)
+    for (const version of ['12.0', '12.0.2 trailing', 'not-npm']) {
+      expect(() => assertSupportedNpm(version)).toThrow(/Cannot parse npm version/)
+    }
+    expect(() => assertSupportedNpm('12.0.2-beta.1')).toThrow(/stable npm release/)
+  })
+
+  test('fails closed when checked-in toolchain metadata disagrees', () => {
+    const packageMetadata = {
+      engines: { node: '>=24.15.0', npm: '>=12.0.2' },
+      packageManager: 'npm@12.0.2',
+    }
+    expect(parseToolchainMetadata(JSON.stringify(packageMetadata), '24.15.0\n')).toEqual({ node: '24.15.0', npm: '12.0.2' })
+    expect(() => parseToolchainMetadata(JSON.stringify(packageMetadata), '24.14.0\n')).toThrow(/\.nvmrc.*engines\.node/)
+    expect(() => parseToolchainMetadata(JSON.stringify({ ...packageMetadata, packageManager: 'npm@12.0.1' }), '24.15.0\n')).toThrow(/packageManager.*engines\.npm/)
+    expect(() =>
+      parseToolchainMetadata(
+        JSON.stringify({
+          ...packageMetadata,
+          engines: { ...packageMetadata.engines, node: '^24.15.0' },
+        }),
+        '24.15.0\n',
+      ),
+    ).toThrow(/engines\.node must use/)
+    expect(() => parseToolchainMetadata(JSON.stringify(packageMetadata), '24.15.0-rc.1\n')).toThrow(/stable \.nvmrc release/)
+    expect(() => parseToolchainMetadata('{', '24.15.0\n')).toThrow(/Cannot parse package\.json/)
+
+    for (const path of ['scripts/release/lib.mjs', 'scripts/release/bootstrap-npm.mjs', 'scripts/release/package.mjs', 'scripts/release/preflight.mjs']) {
+      const source = readFileSync(path, 'utf8')
+      expect(source).not.toContain('24.15.0')
+      expect(source).not.toContain('12.0.2')
+    }
+  })
+
+  test('binds the npm bootstrap artifact to the packageManager version and canonical registry provenance', () => {
+    const fixture = createPinnedNpmArtifactFixture()
+    try {
+      expect(fixture.artifact).toMatchObject({
+        version: '12.0.2',
+        relativePath: 'vendor/npm-12.0.2.tgz',
+        path: fixture.artifactPath,
+        source: 'https://registry.npmjs.org/npm/-/npm-12.0.2.tgz',
+        integrity: fixture.integrity,
+        size: fixture.contents.length,
+        license: 'Artistic-2.0',
+      })
+
+      const invalidPins = [
+        npmArtifactManifest(fixture.contents.length, { version: '12.0.1' }),
+        npmArtifactManifest(fixture.contents.length, {
+          path: 'vendor/npm-elsewhere.tgz',
+        }),
+        npmArtifactManifest(fixture.contents.length, {
+          path: '../npm-12.0.2.tgz',
+        }),
+        npmArtifactManifest(fixture.contents.length, {
+          source: 'https://example.invalid/npm-12.0.2.tgz',
+        }),
+        npmArtifactManifest(fixture.contents.length, {
+          integrity: 'sha256-not-strong-enough',
+        }),
+        npmArtifactManifest(fixture.contents.length, { size: 0 }),
+        npmArtifactManifest(fixture.contents.length, { size: 1.5 }),
+        npmArtifactManifest(fixture.contents.length, { license: 'MIT' }),
+        JSON.stringify({ artifacts: {} }),
+        '{',
+      ]
+      for (const source of invalidPins) {
+        expect(() => parsePinnedNpmArtifact(source, { node: '24.15.0', npm: '12.0.2' }, fixture.repositoryRoot)).toThrow(/npm bootstrap artifact|dependency-pins\.json/)
+      }
+    } finally {
+      rmSync(fixture.temporaryDirectory, { recursive: true, force: true })
+    }
+  })
+
+  test('verifies the npm archive before any npm invocation and rejects unsafe artifact state', () => {
+    const fixture = createPinnedNpmArtifactFixture()
+    try {
+      expect(verifyPinnedNpmArtifact(fixture.artifact)).toEqual(fixture.artifact)
+
+      writeFileSync(fixture.artifactPath, Buffer.alloc(fixture.contents.length, 0x78))
+      let npmInvocations = 0
+      expect(() =>
+        bootstrapNpm({
+          artifact: fixture.artifact,
+          nodeVersion: 'v24.15.0',
+          toolchain: { node: '24.15.0', npm: '12.0.2' },
+          readOutput: () => {
+            npmInvocations += 1
+            return 'unexpected'
+          },
+          run: () => {
+            npmInvocations += 1
+          },
+          persist: () => {
+            throw new Error('GITHUB_PATH must not be updated after verification failure')
+          },
+        }),
+      ).toThrow(/integrity does not match/)
+      expect(npmInvocations).toBe(0)
+
+      writeFileSync(fixture.artifactPath, fixture.contents.subarray(0, fixture.contents.length - 1))
+      expect(() => verifyPinnedNpmArtifact(fixture.artifact)).toThrow(/size does not match/)
+      rmSync(fixture.artifactPath)
+      expect(() => verifyPinnedNpmArtifact(fixture.artifact)).toThrow(/does not exist/)
+      expect(() =>
+        verifyPinnedNpmArtifact(fixture.artifact, {
+          lstat: () => ({
+            isFile: () => false,
+            isSymbolicLink: () => true,
+            size: fixture.contents.length,
+          }),
+          readFile: () => fixture.contents,
+        }),
+      ).toThrow(/regular non-symlink file/)
+    } finally {
+      rmSync(fixture.temporaryDirectory, { recursive: true, force: true })
+    }
+  })
+
+  test('probes npm through its JavaScript CLI and both release entry points reject an old npm', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi-npm-version-'))
+    const npmCli = join(directory, 'npm-cli.mjs')
+    writeFileSync(npmCli, "process.stdout.write('12.0.1\\n')\n")
+    const env = { ...process.env, npm_execpath: npmCli }
+    try {
+      expect(readNpmVersion({ env })).toBe('12.0.1')
+      const preflight = spawnSync(process.execPath, ['scripts/release/preflight.mjs', '--toolchain-only'], { encoding: 'utf8', env })
+      expect(preflight.status).toBe(1)
+      expect(preflight.stderr).toContain('npm >=12.0.2 is required')
+
+      const platform = process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux'
+      const packaging = spawnSync(process.execPath, ['scripts/release/package.mjs', '--qa', '--platform', platform, '--dry-run'], { encoding: 'utf8', env })
+      expect(packaging.status).toBe(1)
+      expect(packaging.stderr).toContain('npm >=12.0.2 is required')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('derives the exact npm CLI and shim from POSIX and Windows global layouts', () => {
+    expect(resolveNpmGlobalLayout('/opt/npm', '/opt/npm/lib/node_modules', 'linux')).toEqual({
+      prefix: '/opt/npm',
+      root: '/opt/npm/lib/node_modules',
+      cliPath: '/opt/npm/lib/node_modules/npm/bin/npm-cli.js',
+      shimDirectory: '/opt/npm/bin',
+      shimPath: '/opt/npm/bin/npm',
+    })
+    expect(resolveNpmGlobalLayout('C:\\npm\\prefix', 'C:\\npm\\prefix\\node_modules', 'win32')).toEqual({
+      prefix: 'C:\\npm\\prefix',
+      root: 'C:\\npm\\prefix\\node_modules',
+      cliPath: 'C:\\npm\\prefix\\node_modules\\npm\\bin\\npm-cli.js',
+      shimDirectory: 'C:\\npm\\prefix',
+      shimPath: 'C:\\npm\\prefix\\npm.cmd',
+    })
+  })
+
+  test('rejects unsafe or inconsistent npm global layout metadata', () => {
+    expect(() => resolveNpmGlobalLayout('relative', '/opt/npm/lib/node_modules', 'linux')).toThrow(/absolute single-line path/)
+    expect(() => resolveNpmGlobalLayout('/opt/npm\n/injected', '/opt/npm/lib/node_modules', 'linux')).toThrow(/absolute single-line path/)
+    expect(() => resolveNpmGlobalLayout('/opt/npm', '/elsewhere/node_modules', 'linux')).toThrow(/does not match.*prefix/)
+    expect(() => resolveNpmGlobalLayout('C:\\npm\\prefix', 'D:\\other\\node_modules', 'win32')).toThrow(/does not match.*prefix/)
+  })
+
+  test('exact npm CLI verification ignores a stale lifecycle npm_execpath', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi exact npm & version-'))
+    const staleCli = join(directory, 'stale-npm-cli.mjs')
+    const installedCli = join(directory, 'installed-npm-cli.mjs')
+    writeFileSync(staleCli, "process.stdout.write('11.12.1\\n')\n")
+    writeFileSync(installedCli, "process.stdout.write('12.0.2\\n')\n")
+    const env = { ...process.env, npm_execpath: staleCli }
+    try {
+      expect(readNpmOutput(['--version'], { env })).toBe('11.12.1')
+      expect(readNpmOutput(['--version'], { env, npmCliPath: installedCli })).toBe('12.0.2')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('always installs the verified archive and verifies the installed CLI, even when invoked npm reports the pinned version', () => {
+    const fixture = createPinnedNpmArtifactFixture()
+    const staleCli = '/runner/node/lib/node_modules/npm/bin/npm-cli.js'
+    const githubPath = '/runner/github-path'
+    const calls: Array<{ args: string[]; npmCliPath: string | undefined }> = []
+    const runs: Array<{ command: string; args: string[]; shell: boolean }> = []
+    const persisted: Array<{
+      shimDirectory: string
+      destination: string | undefined
+    }> = []
+    let installed = false
+    try {
+      const result = bootstrapNpm({
+        artifact: fixture.artifact,
+        env: { npm_execpath: staleCli, GITHUB_PATH: githubPath },
+        nodeVersion: 'v24.15.0',
+        platform: 'linux',
+        toolchain: { node: '24.15.0', npm: '12.0.2' },
+        readOutput: (args: string[], options: { npmCliPath?: string }) => {
+          calls.push({ args, npmCliPath: options.npmCliPath })
+          if (args[0] === 'prefix') return '/runner/npm-global'
+          if (args[0] === 'root') return '/runner/npm-global/lib/node_modules'
+          if (!options.npmCliPath) return '12.0.2'
+          return options.npmCliPath && installed ? '12.0.2' : '11.12.1'
+        },
+        run: (command: string, args: string[], options: { shell?: boolean }) => {
+          installed = true
+          return runs.push({ command, args, shell: options.shell ?? false })
+        },
+        fileExists: () => true,
+        persist: (shimDirectory: string, destination: string | undefined) => {
+          persisted.push({ shimDirectory, destination })
+          return true
+        },
+      })
+
+      expect(runs).toEqual([
+        {
+          command: 'npm',
+          args: ['install', '--global', '--prefix', '/runner/npm-global', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', fixture.artifactPath],
+          shell: false,
+        },
+      ])
+      expect(runs[0]?.args.join(' ')).not.toContain('npm@12.0.2')
+      expect(runs[0]?.args.some((argument) => argument.startsWith('https://'))).toBe(false)
+      expect(calls.at(-1)).toEqual({
+        args: ['--version'],
+        npmCliPath: '/runner/npm-global/lib/node_modules/npm/bin/npm-cli.js',
+      })
+      expect(persisted).toEqual([{ shimDirectory: '/runner/npm-global/bin', destination: githubPath }])
+      expect(result).toMatchObject({
+        current: '12.0.2',
+        installed: '12.0.2',
+        shimDirectory: '/runner/npm-global/bin',
+        githubPathUpdated: true,
+      })
+    } finally {
+      rmSync(fixture.temporaryDirectory, { recursive: true, force: true })
+    }
+  })
+
+  test('executes the installed npm CLI and selects its shim for the next workflow step', () => {
+    const fixture = createPinnedNpmArtifactFixture()
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi stale npm & bootstrap-'))
+    const prefix = join(directory, 'configured global')
+    const root = process.platform === 'win32' ? join(prefix, 'node_modules') : join(prefix, 'lib', 'node_modules')
+    const layout = resolveNpmGlobalLayout(prefix, root)
+    const staleCli = join(directory, 'stale npm-cli.mjs')
+    const githubPath = join(directory, 'github-path')
+    const expectedInstallArgs = ['install', '--global', '--prefix', prefix, '--offline', '--ignore-scripts', '--no-audit', '--no-fund', fixture.artifactPath]
+    mkdirSync(dirname(staleCli), { recursive: true })
+    writeFileSync(githubPath, '')
+    writeFileSync(
+      staleCli,
+      `import { mkdirSync, writeFileSync } from 'node:fs'
+const args = process.argv.slice(2)
+if (args[0] === '--version') process.stdout.write('11.12.1\\n')
+else if (args[0] === 'prefix') process.stdout.write(${JSON.stringify(`${prefix}\n`)})
+else if (args[0] === 'root') process.stdout.write(${JSON.stringify(`${root}\n`)})
+else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstallArgs))}) {
+  mkdirSync(${JSON.stringify(dirname(layout.cliPath))}, { recursive: true })
+  mkdirSync(${JSON.stringify(layout.shimDirectory)}, { recursive: true })
+  writeFileSync(${JSON.stringify(layout.cliPath)}, "process.stdout.write('12.0.2\\\\n')\\n")
+  writeFileSync(${JSON.stringify(layout.shimPath)}, 'npm shim')
+} else {
+  process.stderr.write(\`unexpected fake npm arguments: \${JSON.stringify(args)}\`)
+  process.exitCode = 2
+}
+`,
+    )
+
+    try {
+      const result = bootstrapNpm({
+        artifact: fixture.artifact,
+        env: {
+          ...process.env,
+          GITHUB_PATH: githubPath,
+          npm_execpath: staleCli,
+        },
+      })
+      expect(result).toMatchObject({
+        current: '11.12.1',
+        installed: '12.0.2',
+        ...layout,
+        githubPathUpdated: true,
+      })
+      expect(readFileSync(githubPath, 'utf8')).toBe(`${layout.shimDirectory}\n`)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+      rmSync(fixture.temporaryDirectory, { recursive: true, force: true })
+    }
+  })
+
+  test('installs the checked-in npm archive into a fresh prefix without network access', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi real npm bootstrap & '))
+    const prefix = join(directory, 'fresh global prefix')
+    const githubPath = join(directory, 'github-path')
+    const cache = join(directory, 'npm cache')
+    writeFileSync(githubPath, '')
+    try {
+      const result = bootstrapNpm({
+        env: {
+          ...process.env,
+          GITHUB_PATH: githubPath,
+          npm_config_cache: cache,
+          npm_config_prefix: prefix,
+        },
+      })
+      expect(result).toMatchObject({
+        installed: '12.0.2',
+        prefix,
+        githubPathUpdated: true,
+      })
+      expect(readFileSync(githubPath, 'utf8')).toBe(`${result.shimDirectory}\n`)
+      expect(readNpmOutput(['--version'], { npmCliPath: result.cliPath })).toBe('12.0.2')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  }, 30_000)
+
+  test('persists only a validated npm shim directory for the next GitHub Actions step', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi-github-path-'))
+    const githubPath = join(directory, 'github-path')
+    writeFileSync(githubPath, '/existing/tool\n')
+    try {
+      expect(persistNpmShimDirectory('/opt/repository-npm/bin', githubPath, 'linux')).toBe(true)
+      const entries = readFileSync(githubPath, 'utf8').trimEnd().split('\n')
+      expect(entries).toEqual(['/existing/tool', '/opt/repository-npm/bin'])
+      // GitHub prepends GITHUB_PATH entries to PATH for subsequent steps, so
+      // the persisted entry becomes the npm selected by the next npm command.
+      expect(entries.at(-1)).toBe('/opt/repository-npm/bin')
+      expect(() => persistNpmShimDirectory('/opt/npm\n/injected', githubPath, 'linux')).toThrow(/absolute single-line path/)
+      expect(() => persistNpmShimDirectory('/opt/npm/bin', 'relative/github-path', 'linux')).toThrow(/absolute single-line path/)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('persists the bootstrapped npm CLI for direct Node release entry points', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi-github-env-'))
+    const githubEnv = join(directory, 'github-env')
+    writeFileSync(githubEnv, '')
+    try {
+      expect(persistNpmCliPath('/opt/repository-npm/lib/node_modules/npm/bin/npm-cli.js', githubEnv, 'linux')).toBe(true)
+      expect(readFileSync(githubEnv, 'utf8')).toBe('npm_execpath=/opt/repository-npm/lib/node_modules/npm/bin/npm-cli.js\n')
+      expect(() => persistNpmCliPath('/opt/npm\n/injected', githubEnv, 'linux')).toThrow(/absolute single-line path/)
+      expect(() => persistNpmCliPath('/opt/npm/bin/npm-cli.js', 'relative/github-env', 'linux')).toThrow(/absolute single-line path/)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('keeps contributor instructions aligned with the enforced engines', () => {
+    const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
+    const toolchain = readRepositoryToolchain()
+    expect(packageJson.engines).toEqual({
+      node: `>=${toolchain.node}`,
+      npm: `>=${toolchain.npm}`,
+    })
+    expect(packageJson.packageManager).toBe(`npm@${toolchain.npm}`)
+    expect(readFileSync('.nvmrc', 'utf8').trim()).toBe(toolchain.node)
+    const readme = readFileSync('README.md', 'utf8')
+    expect(readme).toContain(`Node.js ${toolchain.node} or newer and npm ${toolchain.npm} or newer`)
+    expect(readme).toContain('npm run toolchain:bootstrap')
+    expect(readme).toContain("invoked npm's configured global prefix")
+    expect(readme).toContain('install-time lifecycle scripts disabled')
+    expect(readme).not.toContain('into the active Node installation')
+    expect(readFileSync('scripts/release/package.mjs', 'utf8')).toContain('assertSupportedToolchain()')
+    expect(readFileSync('scripts/release/preflight.mjs', 'utf8')).toContain('assertSupportedToolchain()')
+  })
+
+  test('fails closed without Developer ID credentials', () => {
+    expect(() => validateReleaseCredentials({}, { checkApiKeyFile: false })).toThrow(/RELEASE_SIGNING_TEAM_ID/)
+    expect(() => validateReleaseCredentials({ ...baseEnvironment, CSC_LINK: '' }, { checkApiKeyFile: false })).toThrow(/CSC_LINK/)
+  })
+
+  test('accepts exactly one complete notarization credential set', () => {
+    expect(() => validateReleaseCredentials(baseEnvironment, { checkApiKeyFile: false })).not.toThrow()
+    const apiEnvironment = {
+      RELEASE_SIGNING_TEAM_ID: 'TEAM123',
+      CSC_LINK: 'certificate',
+      CSC_KEY_PASSWORD: 'password',
+      APPLE_API_KEY: '/tmp/AuthKey.p8',
+      APPLE_API_KEY_ID: 'KEY123',
+      APPLE_API_ISSUER: 'issuer-id',
+    }
+    expect(() => validateReleaseCredentials(apiEnvironment, { checkApiKeyFile: false })).not.toThrow()
+    expect(() => validateReleaseCredentials({ ...baseEnvironment, ...apiEnvironment }, { checkApiKeyFile: false })).toThrow(/exactly one/)
+  })
+
+  test('binds Apple ID notarization to the signing Team ID', () => {
+    expect(() => validateReleaseCredentials({ ...baseEnvironment, APPLE_TEAM_ID: 'OTHER' }, { checkApiKeyFile: false })).toThrow(/must match/)
+  })
+
+  test('fails closed without Windows Authenticode credentials', () => {
+    expect(() => validateWindowsReleaseCredentials({})).toThrow(/WIN_CSC_LINK, WIN_CSC_KEY_PASSWORD/)
+    expect(() =>
+      validateWindowsReleaseCredentials({
+        WIN_CSC_LINK: 'certificate',
+        WIN_CSC_KEY_PASSWORD: 'password',
+      }),
+    ).not.toThrow()
+    const packaging = readFileSync('scripts/release/package.mjs', 'utf8')
+    expect(packaging).toContain("builderArgs.push('--config.forceCodeSigning=true')")
+    expect(packaging).toContain("'--mode', isPublic ? 'public' : 'qa'")
+  })
+
+  test('removes release credentials from untrusted verification commands', () => {
+    const environment = {
+      PATH: '/usr/bin',
+      ...baseEnvironment,
+      APPLE_API_KEY: '/tmp/private-key',
+    }
+    expect(withoutReleaseCredentials(environment)).toEqual({
+      PATH: '/usr/bin',
+    })
+    expect(withoutReleaseCredentials(environment, ['RELEASE_SIGNING_TEAM_ID'])).toEqual({
+      PATH: '/usr/bin',
+      RELEASE_SIGNING_TEAM_ID: 'TEAM123',
+    })
+    expect(
+      withoutReleaseCredentials({
+        PATH: '/usr/bin',
+        WIN_CSC_LINK: 'certificate',
+        WIN_CSC_KEY_PASSWORD: 'password',
+      }),
+    ).toEqual({ PATH: '/usr/bin' })
+  })
+
+  interface WorkflowStep {
+    job: string
+    name: string | undefined
+    uses: string | undefined
+    secretLines: string[]
+    lines: string[]
+  }
+
+  /** Minimal structural read of a GitHub workflow: jobs and their step blocks. */
+  function parseWorkflowSteps(source: string): WorkflowStep[] {
+    const steps: WorkflowStep[] = []
+    let job = ''
+    let inJobs = false
+    let current: WorkflowStep | undefined
+    for (const line of source.split('\n')) {
+      if (/^jobs:\s*$/.test(line)) {
+        inJobs = true
+        continue
+      }
+      if (!inJobs) continue
+      const jobMatch = line.match(/^ {2}([A-Za-z0-9_-]+):\s*$/)
+      if (jobMatch) {
+        job = jobMatch[1]
+        current = undefined
+        continue
+      }
+      if (/^ {6}- /.test(line)) {
+        current = {
+          job,
+          name: undefined,
+          uses: undefined,
+          secretLines: [],
+          lines: [],
+        }
+        steps.push(current)
+      }
+      if (!current) continue
+      current.lines.push(line)
+      const name = line.match(/^\s*(?:- )?name:\s*(.+?)\s*$/)
+      if (name && current.name === undefined) current.name = name[1]
+      const uses = line.match(/^\s*(?:- )?uses:\s*(\S+)/)
+      if (uses && current.uses === undefined) current.uses = uses[1]
+      if (line.includes('secrets.')) current.secretLines.push(line)
+    }
+    return steps
+  }
+
+  test('pins every workflow action, including third-party owners, to a full commit SHA', () => {
+    for (const path of ['../.github/workflows/desktop-release.yml', '../.github/workflows/desktop-ci.yml']) {
+      const steps = parseWorkflowSteps(readFileSync(path, 'utf8'))
+      expect(steps.length).toBeGreaterThan(0)
+      for (const step of steps) {
+        if (step.uses === undefined) continue
+        // Every `uses:` reference must be `owner/repo[/path]@<40-hex sha>`,
+        // regardless of owner - tags and branches are movable for actions/*
+        // and third-party owners alike.
+        expect(step.uses, `${path} ${step.job}: ${step.uses}`).toMatch(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_./-]+@[0-9a-f]{40}$/)
+      }
+    }
+  })
+
+  test('confines workflow secrets to the signing, notarization and packaging release steps', () => {
+    const releaseSteps = parseWorkflowSteps(readFileSync('../.github/workflows/desktop-release.yml', 'utf8'))
+    const secretSteps = releaseSteps.filter((step) => step.secretLines.length > 0)
+    // Packaging steps also read LOOM_READ_TOKEN to fetch the private Loom source.
+    expect(secretSteps.map((step) => `${step.job}: ${step.name}`).sort()).toEqual([
+      'package-linux: Build and verify Linux packages',
+      'package-windows: Build unsigned Windows packages for beta distribution',
+      'package-windows: Build, Authenticode-sign, and verify Windows packages',
+      'package: Build, sign, notarize, and verify release packages',
+      'package: Fail closed unless every release credential is configured',
+    ])
+    for (const step of secretSteps.filter((candidate) => candidate.job === 'package-linux' || candidate.name?.includes('unsigned'))) {
+      expect(step.secretLines.map((line) => line.trim())).toEqual(['LOOM_READ_TOKEN: ${{ secrets.LOOM_READ_TOKEN }}'])
+    }
+    for (const step of secretSteps) {
+      // Secrets may only be consumed as env-var assignments inside the step's
+      // env block - never interpolated into run commands or action inputs.
+      expect(step.lines.some((line) => /^\s*env:\s*$/.test(line))).toBe(true)
+      for (const line of step.secretLines) {
+        expect(line).toMatch(/^\s+[A-Z][A-Z0-9_]*: \$\{\{ secrets\.[A-Z][A-Z0-9_]* \}\}$/)
+      }
+      expect(step.lines.join('\n')).not.toMatch(/run:.*secrets\./)
+    }
+
+    const ciSteps = parseWorkflowSteps(readFileSync('../.github/workflows/desktop-ci.yml', 'utf8'))
+    expect(ciSteps.filter((step) => step.secretLines.length > 0)).toEqual([])
+  })
+
+  test('builds Loom with the locked Go version in release packaging and leaves it out of CI packaging', () => {
+    const goVersion = (JSON.parse(readFileSync('runtime-lock.json', 'utf8')) as { loom: { goVersion: string } }).loom.goVersion.replace(/^go/, '')
+    const release = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    const releaseSteps = parseWorkflowSteps(release)
+    for (const job of ['package', 'package-linux', 'package-windows']) {
+      const setupGo = releaseSteps.filter((step) => step.job === job && step.uses?.startsWith('actions/setup-go@'))
+      expect(setupGo, job).toHaveLength(1)
+      expect(setupGo[0].lines.join('\n'), job).toContain(`go-version: '${goVersion}'`)
+    }
+    expect(release).not.toContain('GOOEYPI_RUNTIME_WITHOUT_LOOM')
+    const ci = load(readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')) as { jobs: Record<string, { env?: Record<string, string> }> }
+    for (const job of ['packaging-smoke', 'local-qa-package']) expect(ci.jobs[job].env?.GOOEYPI_RUNTIME_WITHOUT_LOOM, job).toBe('1')
+  })
+
+  test('routes desktop jobs by repository paths and runs commands from the desktop package', () => {
+    type Workflow = {
+      defaults?: { run?: { 'working-directory'?: string } }
+      jobs: Record<
+        string,
+        {
+          needs?: string | string[]
+          if?: string
+          steps?: Array<{
+            uses?: string
+            run?: string
+            if?: string
+            with?: Record<string, unknown>
+          }>
+        }
+      >
+    }
+    const ci = load(readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')) as Workflow
+    const audit = load(readFileSync('../.github/workflows/desktop-audit.yml', 'utf8')) as Workflow
+    const release = load(readFileSync('../.github/workflows/desktop-release.yml', 'utf8')) as Workflow
+    const pathFilter = ci.jobs['desktop-path-filter']
+    const pathFilterScript = pathFilter.steps?.find((step) => step.run)?.run ?? ''
+
+    expect(ci.defaults?.run?.['working-directory']).toBe('desktop')
+    expect(audit.defaults?.run?.['working-directory']).toBe('desktop')
+    expect(release.defaults?.run?.['working-directory']).toBe('desktop')
+    expect(pathFilterScript).toContain('desktop .github/workflows/desktop-*.yml')
+    expect(pathFilterScript).toContain("EVENT_NAME\" == 'workflow_dispatch'")
+    for (const jobName of ['production-audit', 'quality', 'hermetic-e2e', 'windows-state-migration', 'packaging-smoke']) {
+      expect(ci.jobs[jobName].needs, jobName).toBe('desktop-path-filter')
+      expect(ci.jobs[jobName].if, jobName).toContain('needs.desktop-path-filter.outputs.run')
+    }
+    const localQa = ci.jobs['local-qa-package']
+    expect(localQa.needs).toEqual(['desktop-path-filter', 'production-audit', 'quality', 'hermetic-e2e', 'windows-state-migration'])
+    expect(localQa.if).toBe("github.event_name == 'workflow_dispatch' && needs.desktop-path-filter.outputs.run == 'true'")
+    expect(localQa.steps?.find((step) => step.uses?.startsWith('actions/checkout@'))?.with?.ref).toBe('${{ github.sha }}')
+    const npmPackageStep = localQa.steps?.find((step) => step.run?.startsWith('${{ matrix.package }}'))
+    expect(npmPackageStep?.run).toBe('${{ matrix.package }} -- --skip-verify')
+    expect(npmPackageStep?.if).toBe("matrix.runner != 'windows-2022'")
+    expect(localQa.steps?.some((step) => step.if === "matrix.runner == 'windows-2022'" && step.run === 'node scripts/release/package.mjs --qa --platform win --skip-verify')).toBe(true)
+    expect(localQa.steps?.some((step) => step.if === "matrix.runner == 'ubuntu-22.04'" && step.run?.includes('install -y libarchive-tools'))).toBe(true)
+
+    for (const workflow of [ci, audit, release]) {
+      for (const job of Object.values(workflow.jobs)) {
+        for (const step of job.steps ?? []) {
+          const setup = step.with
+          if (!setup || !('node-version-file' in setup)) continue
+          expect(setup['node-version-file']).toBe('desktop/.nvmrc')
+          if ('cache' in setup) expect(setup['cache-dependency-path']).toBe('desktop/package-lock.json')
+        }
+      }
+    }
+  })
+
+  test('cancels superseded PR runs without cancelling validation for pushed SHAs', () => {
+    const workflow = load(readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')) as {
+      concurrency: { group: string; 'cancel-in-progress': string }
+    }
+    expect(workflow.concurrency.group).toBe(
+      "ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && format('push-{0}', github.sha) || format('dispatch-{0}', github.run_id) }}",
+    )
+    expect(workflow.concurrency['cancel-in-progress']).toBe("${{ github.event_name == 'pull_request' }}")
+  })
+
+  test('gates packaging regressions on desktop pull requests', () => {
+    const ciWorkflow = readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')
+    expect(ciWorkflow).toMatch(/on:\n {2}push:\n {4}branches:\n {6}- main/)
+    expect(ciWorkflow).toMatch(/packaging-smoke:\n {4}needs: desktop-path-filter\n {4}if: github\.event_name == 'pull_request' && needs\.desktop-path-filter\.outputs\.run == 'true'/)
+    for (const runner of ['macos-14', 'ubuntu-22.04', 'windows-2022']) expect(ciWorkflow).toContain(`runner: ${runner}`)
+    expect(ciWorkflow).toContain('node scripts/release/electron-builder.mjs --dir')
+    expect(ciWorkflow).toContain('--publish=never')
+    expect(ciWorkflow).not.toContain('--publish never')
+    expect(ciWorkflow).toContain('verify-cross-platform-package.mjs --platform ${{ matrix.target }} --arch ${{ matrix.arch }} --unpacked-only')
+  })
+
+  test('gates every pull-request head and pinned release SHA on the named production audit', () => {
+    type WorkflowJob = {
+      name?: string
+      needs?: string | string[]
+      if?: string
+      steps?: Array<{
+        name?: string
+        uses?: string
+        run?: string
+        if?: string
+        with?: Record<string, unknown>
+      }>
+    }
+    type Workflow = {
+      on: Record<string, unknown>
+      jobs: Record<string, WorkflowJob>
+    }
+    const ci = load(readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')) as Workflow
+    const release = load(readFileSync('../.github/workflows/desktop-release.yml', 'utf8')) as Workflow
+
+    expect(ci.on).toHaveProperty('pull_request')
+    const ciAudit = ci.jobs['production-audit']
+    expect(ciAudit.name).toBe('Production dependency audit')
+    expect(ciAudit.needs).toBe('desktop-path-filter')
+    expect(ciAudit.if).toBe("needs.desktop-path-filter.outputs.run == 'true'")
+    expect(ciAudit.steps?.find((step) => step.uses?.startsWith('actions/checkout@'))?.with?.ref).toBe('${{ github.event.pull_request.head.sha || github.sha }}')
+    const ciAuditSteps = ciAudit.steps?.filter((step) => step.run === 'npm run audit:production') ?? []
+    expect(ciAuditSteps).toHaveLength(1)
+    expect(ciAuditSteps[0].name).toBe('Apply named production dependency audit exceptions')
+
+    const releaseAudit = release.jobs['production-audit']
+    expect(releaseAudit.name).toBe(ciAudit.name)
+    expect(releaseAudit.needs).toBe('validate')
+    expect(releaseAudit.steps?.find((step) => step.uses?.startsWith('actions/checkout@'))?.with?.ref).toBe('${{ needs.validate.outputs.sha }}')
+    const releaseAuditSteps = releaseAudit.steps?.filter((step) => step.run === 'npm run audit:production') ?? []
+    expect(releaseAuditSteps).toHaveLength(1)
+    expect(releaseAuditSteps[0].name).toBe(ciAuditSteps[0].name)
+
+    for (const jobName of ['package', 'package-linux', 'package-windows']) {
+      expect(release.jobs[jobName].needs, `${jobName} must wait for the pinned production audit`).toEqual(['validate', 'production-audit', 'quality', 'hermetic-e2e'])
+    }
+    expect(release.jobs['release-packages'].needs).toEqual(['validate', 'production-audit', 'package', 'package-linux', 'package-windows'])
+    expect(release.jobs['release-packages'].steps?.find((step) => step.name === 'Fail if a release prerequisite did not succeed')?.if).toContain("needs.production-audit.result != 'success'")
+  })
+
+  test('keeps the weekly and manual disclosure audit on the same exception-aware evaluator', () => {
+    type Workflow = {
+      on: { schedule?: Array<{ cron?: string }>; workflow_dispatch?: unknown }
+      jobs: Record<string, { steps?: Array<{ run?: string }> }>
+    }
+    const audit = load(readFileSync('../.github/workflows/desktop-audit.yml', 'utf8')) as Workflow
+
+    expect(audit.on.schedule).toEqual([{ cron: '17 6 * * 1' }])
+    expect(audit.on).toHaveProperty('workflow_dispatch')
+    expect(audit.jobs.audit.steps?.filter((step) => step.run === 'npm run audit:production')).toHaveLength(1)
+  })
+
+  test('reads the Node version from .nvmrc and hard-fails empty artifact uploads', () => {
+    const releaseWorkflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    const ciWorkflow = readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')
+    const auditWorkflow = readFileSync('../.github/workflows/desktop-audit.yml', 'utf8')
+    const workflows = [
+      {
+        path: '../.github/workflows/desktop-release.yml',
+        source: releaseWorkflow,
+      },
+      { path: '../.github/workflows/desktop-ci.yml', source: ciWorkflow },
+      { path: '../.github/workflows/desktop-audit.yml', source: auditWorkflow },
+    ]
+    for (const { path, source } of workflows) {
+      const workflow = source
+      expect(workflow).not.toMatch(/node-version:/)
+      const steps = parseWorkflowSteps(workflow)
+      const setupSteps = steps.filter((step) => step.uses?.startsWith('actions/setup-node@'))
+      expect(setupSteps.length).toBeGreaterThan(0)
+      for (const setup of setupSteps) {
+        const setupIndex = steps.indexOf(setup)
+        const bootstrapIndexes = steps.flatMap((step, index) => (step.job === setup.job && step.lines.some((line) => line.includes('run: npm run toolchain:bootstrap')) ? [index] : []))
+        const preflightIndexes = steps.flatMap((step, index) => (step.job === setup.job && step.lines.some((line) => line.includes('run: npm run release:preflight:toolchain')) ? [index] : []))
+        expect(bootstrapIndexes, `${path} ${setup.job} bootstrap steps`).toHaveLength(1)
+        expect(preflightIndexes, `${path} ${setup.job} toolchain preflight steps`).toHaveLength(1)
+        const bootstrapIndex = bootstrapIndexes[0]
+        const preflightIndex = preflightIndexes[0]
+        const installIndex = steps.findIndex((step, index) => index > setupIndex && step.job === setup.job && step.lines.some((line) => /run: npm ci(?:\s|$)/.test(line)))
+        expect(bootstrapIndex).toBeGreaterThan(setupIndex)
+        expect(preflightIndex).toBeGreaterThan(bootstrapIndex)
+        if (installIndex >= 0) {
+          expect(bootstrapIndex).toBeLessThan(installIndex)
+          expect(preflightIndex).toBeGreaterThan(installIndex)
+          const firstRunAfterInstall = steps.findIndex((step, index) => index > installIndex && step.job === setup.job && step.lines.some((line) => /^\s*(?:-\s*)?run:/.test(line)))
+          expect(firstRunAfterInstall, `${path} ${setup.job} first command after npm ci`).toBe(preflightIndex)
+        }
+      }
+      expect(workflow).not.toContain('npm run release:preflight -- --toolchain-only')
+    }
+    for (const workflow of [releaseWorkflow, ciWorkflow]) {
+      const uploads = workflow.match(/uses: actions\/upload-artifact@/g) ?? []
+      expect(workflow.match(/if-no-files-found: error/g)).toHaveLength(uploads.length)
+      expect(workflow).toContain('actions/cache@')
+    }
+    // Release jobs skip the CI-duplicated verification suite and never upload
+    // an unpacked application directory; every platform publishes its update feed.
+    expect(releaseWorkflow.match(/-- --skip-verify/g)).toHaveLength(2)
+    expect(releaseWorkflow.match(/node scripts\/release\/package\.mjs --(?:public|qa) --platform win --skip-verify/g)).toHaveLength(2)
+    expect(releaseWorkflow).toContain('release/mac/${{ matrix.arch }}/latest*.yml')
+    expect(releaseWorkflow).toContain('release/linux/${{ matrix.arch }}/latest*.yml')
+    expect(releaseWorkflow).toContain('release/win/**/latest*.yml')
+    expect(releaseWorkflow).toMatch(/needs: \[validate, production-audit, package, package-linux, package-windows\]/)
+    expect(releaseWorkflow).toContain("needs.package-windows.result != 'skipped'")
+    expect(releaseWorkflow).toContain('--platforms "$platforms"')
+    expect(releaseWorkflow).toContain('release/linux/${{ matrix.arch }}/*.pacman')
+    expect(releaseWorkflow).toContain('sudo apt-get install --yes libarchive-tools')
+    expect(ciWorkflow).not.toMatch(/path: release\/(mac|linux|win)\/\s*$/m)
+  })
+
+  test('uploads packaged smoke diagnostics only when the failed launch wrote its log', () => {
+    type WorkflowJob = {
+      steps?: Array<{
+        uses?: string
+        if?: string
+        with?: Record<string, unknown>
+      }>
+    }
+    type Workflow = { jobs: Record<string, WorkflowJob> }
+    const ci = load(readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')) as Workflow
+    const release = load(readFileSync('../.github/workflows/desktop-release.yml', 'utf8')) as Workflow
+    const uploadCondition = (job: WorkflowJob) => job.steps?.find((step) => step.uses?.startsWith('actions/upload-artifact@') && String(step.with?.name).includes('packaged-smoke-diagnostics'))?.if
+
+    expect(uploadCondition(ci.jobs['packaging-smoke'])).toContain('failure()')
+    expect(uploadCondition(ci.jobs['packaging-smoke'])).toContain('hashFiles(')
+    expect(uploadCondition(release.jobs['package-linux'])).toContain('hashFiles(')
+    expect(uploadCondition(release.jobs['package-windows'])).toContain('hashFiles(')
+  })
+
+  test('publishes one verified GitHub Release only after a manual request selects an existing version tag', () => {
+    const workflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    const parsed = load(workflow) as {
+      on: {
+        workflow_dispatch?: { inputs?: Record<string, unknown> }
+        push?: unknown
+      }
+      permissions?: { contents?: string }
+      jobs: Record<
+        string,
+        {
+          permissions?: {
+            contents?: string
+            'id-token'?: string
+            attestations?: string
+          }
+          steps?: Array<{
+            name?: string
+            uses?: string
+            'working-directory'?: string
+            with?: Record<string, unknown>
+          }>
+        }
+      >
+    }
+    expect(parsed.on.workflow_dispatch?.inputs).toHaveProperty('tag')
+    expect(parsed.on.push).toBeUndefined()
+    expect(parsed.permissions?.contents).toBe('read')
+    expect(parsed.jobs['release-packages'].permissions).toEqual({
+      contents: 'write',
+      'id-token': 'write',
+      attestations: 'write',
+    })
+    const publishSteps = parsed.jobs['release-packages'].steps ?? []
+    expect(publishSteps[0]).toMatchObject({
+      name: 'Fail if a release prerequisite did not succeed',
+      'working-directory': '.',
+    })
+    expect(publishSteps.find((step) => step.uses?.startsWith('actions/download-artifact@'))?.with?.path).toBe('desktop/downloaded-release-artifacts')
+    expect(publishSteps.find((step) => step.name === 'Attest release assets')?.with?.['subject-path']).toBe('desktop/release-assets/*')
+    expect(workflow).toContain('node scripts/release/validate-release-tag.mjs --tag "$RELEASE_TAG"')
+    expect(workflow).toContain('git merge-base --is-ancestor HEAD refs/remotes/origin/main')
+    expect(workflow).toContain('node scripts/release/prepare-github-release.mjs')
+    // The privileged publishing job installs only the runtime dependency tree
+    // the release script needs, never the full dev toolchain.
+    expect(workflow).toMatch(/release-packages:[\s\S]*?npm ci --omit=dev --ignore-scripts[\s\S]*?node scripts\/release\/prepare-github-release\.mjs/)
+    expect(workflow).not.toContain('npm ci --ignore-scripts\n')
+    expect(workflow).toContain('actions/download-artifact@')
+    expect(workflow).toContain('actions/attest-build-provenance@')
+    expect(workflow).toContain('gh release create "$RELEASE_TAG" release-assets/*')
+    expect(workflow).toContain('gh release upload "$RELEASE_TAG" release-assets/* --clobber')
+    expect(workflow).toContain('gh release edit "$RELEASE_TAG" --verify-tag --draft=false --latest')
+    expect(workflow).toContain('--title "Weave Workbench ${RELEASE_TAG#v}"')
+    expect(workflow).toContain('is already published and will not be replaced')
+    expect(workflow).toContain('--verify-tag')
+    expect(workflow).toContain('--fail-on-no-commits')
+    expect(workflow).toContain('--generate-notes')
+    // always() keeps the aggregate job from being skipped; the first step
+    // fails explicitly when a prerequisite failed or was cancelled.
+    expect(workflow).toMatch(/release-packages:\n {4}needs: \[validate, production-audit, package, package-linux, package-windows\]\n(?: {4}#.*\n)* {4}if: always\(\)\n {4}runs-on: ubuntu-22\.04/)
+    expect(workflow).toContain('Fail if a release prerequisite did not succeed')
+    expect(workflow).toContain("needs.validate.result != 'success'")
+    expect(workflow).toContain('exit 1')
+  })
+
+  test('pins every release job to one commit SHA resolved by validate', () => {
+    const workflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    const parsed = load(workflow) as {
+      jobs: Record<
+        string,
+        {
+          outputs?: Record<string, string>
+          steps?: Array<{
+            id?: string
+            run?: string
+            with?: Record<string, unknown>
+          }>
+        }
+      >
+    }
+    expect(parsed.jobs.validate.outputs).toEqual({
+      sha: '${{ steps.resolve.outputs.sha }}',
+    })
+    expect(parsed.jobs.validate.steps?.find((step) => step.id === 'resolve')?.run).toContain('git rev-parse HEAD^{commit}')
+    // validate resolves the movable tag once; every other job checks out that
+    // SHA so a tag moved mid-run cannot make two jobs build different commits.
+    for (const [name, job] of Object.entries(parsed.jobs)) {
+      const checkouts = (job.steps ?? []).filter((step) => step.with && 'ref' in step.with)
+      expect(checkouts.length, name).toBeGreaterThan(0)
+      for (const step of checkouts) expect(step.with?.ref, name).toBe(name === 'validate' ? '${{ env.RELEASE_REF }}' : '${{ needs.validate.outputs.sha }}')
+    }
+    // The ancestry check depends on the full history fetched above.
+    expect(workflow).toContain('# fetch-depth: 0 above is what populates refs/remotes/origin/*')
+    expect(workflow).toMatch(/fetch-depth: 0\n[\s\S]*?git merge-base --is-ancestor HEAD refs\/remotes\/origin\/main/)
+  })
+
+  test('deletes stale draft assets before publishing a resumed release', () => {
+    const workflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    expect(workflow).toContain('gh release view "$RELEASE_TAG" --json assets > draft-release.json')
+    expect(workflow).toContain('node scripts/release/prune-draft-release-assets.mjs --assets draft-release.json --expected release-assets')
+    expect(workflow).toContain('gh release delete-asset "$RELEASE_TAG" "$stale" --yes')
+    expect(workflow).toMatch(/delete-asset[\s\S]*?gh release upload "\$RELEASE_TAG" release-assets\/\* --clobber[\s\S]*?--draft=false/)
+  })
+
+  test('passes the expected Authenticode signer to Windows packaging', () => {
+    const workflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    expect(workflow).toContain('GOOEYPI_WINDOWS_CERT_SUBJECT: ${{ vars.GOOEYPI_WINDOWS_CERT_SUBJECT }}')
+    expect(workflow).toContain('GOOEYPI_WINDOWS_CERT_THUMBPRINT: ${{ vars.GOOEYPI_WINDOWS_CERT_THUMBPRINT }}')
+    const security = readFileSync('docs/安全模型.md', 'utf8')
+    expect(security).toContain('`GOOEYPI_WINDOWS_CERT_SUBJECT`')
+    expect(security).toContain('`GOOEYPI_WINDOWS_CERT_THUMBPRINT`')
+    expect(security).toContain('when neither is configured, public Windows packaging fails closed')
+  })
+
+  test('ships both mac architectures as separate builds from native-arch runners', () => {
+    const releaseWorkflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    // Two matrix legs, each on a runner whose native architecture matches the
+    // target (arm64 on macos-15, x64 on macos-15-intel) so node-pty/zeromq never
+    // cross-compile, and one leg's failure never cancels the other's build.
+    expect(releaseWorkflow).toContain('fail-fast: false')
+    expect(releaseWorkflow).toMatch(/- arch: arm64\n {12}runner: macos-15/)
+    expect(releaseWorkflow).toMatch(/- arch: x64\n {12}runner: macos-15-intel/)
+    expect(releaseWorkflow).toContain('runs-on: ${{ matrix.runner }}')
+    // The explicit target arch drives packaging, and each leg uploads only its
+    // own arch directory under a per-arch artifact name and cache key.
+    expect(releaseWorkflow).toContain('npm run package:mac -- --skip-verify --arch ${{ matrix.arch }}')
+    expect(releaseWorkflow).toContain('name: gooeypi-public-macos-${{ matrix.arch }}')
+    expect(releaseWorkflow).toContain('release/mac/${{ matrix.arch }}/*.dmg')
+    expect(releaseWorkflow).toContain('release/mac/${{ matrix.arch }}/*.zip')
+    expect(releaseWorkflow).toContain('electron-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles(')
+    // Universal binaries are excluded by design: the release ships two builds.
+    expect(releaseWorkflow).not.toContain('--universal')
+  })
+
+  test('ships both Linux architectures as separately labeled native builds', () => {
+    const releaseWorkflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    expect(releaseWorkflow).toMatch(/package-linux:\n {4}needs: \[validate, production-audit, quality, hermetic-e2e\]\n {4}strategy:/)
+    expect(releaseWorkflow).toMatch(/- arch: arm64\n {12}runner: ubuntu-24\.04-arm/)
+    expect(releaseWorkflow).toMatch(/- arch: x64\n {12}runner: ubuntu-22\.04/)
+    expect(releaseWorkflow).toContain('runs-on: ${{ matrix.runner }}')
+    expect(releaseWorkflow).toContain('npm run package:linux -- --skip-verify --arch ${{ matrix.arch }}')
+    expect(releaseWorkflow).toContain('name: gooeypi-public-linux-${{ matrix.arch }}')
+    expect(releaseWorkflow).toContain('release/linux/${{ matrix.arch }}/*.AppImage')
+    expect(releaseWorkflow).toContain('release/linux/${{ matrix.arch }}/latest*.yml')
+    expect(releaseWorkflow).toContain('electron-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles(')
+  })
+})
+
+describe('GitHub Release publication', () => {
+  test('selects an exact enabled platform set', () => {
+    expect(parseReleasePlatforms('mac,linux')).toEqual(['mac', 'linux'])
+    expect(expectedGitHubReleaseAssets('0.2.0', ['mac', 'linux'])).not.toContain('Weave Workbench-0.2.0-win-x64.exe')
+    expect(expectedGitHubReleaseAssets('0.2.0', ['mac'])).toEqual([
+      'Weave Workbench-0.2.0-arm64.zip',
+      'Weave Workbench-0.2.0-intel-chip.dmg',
+      'Weave Workbench-0.2.0-m-chip.dmg',
+      'Weave Workbench-0.2.0-x64.zip',
+      'latest-mac.yml',
+    ])
+    expect(expectedDownloadedReleaseAssets('0.2.0', ['mac'])).toEqual([
+      'Weave Workbench-0.2.0-arm64.zip',
+      'Weave Workbench-0.2.0-x64.dmg',
+      'Weave Workbench-0.2.0-arm64.dmg',
+      'Weave Workbench-0.2.0-x64.zip',
+      'latest-mac.yml',
+    ])
+    expect(expectedGitHubReleaseAssets('0.2.0', ['linux'])).toEqual([
+      'Weave Workbench-0.2.0-linux-aarch64.pacman',
+      'Weave Workbench-0.2.0-linux-aarch64.rpm',
+      'Weave Workbench-0.2.0-linux-amd64.deb',
+      'Weave Workbench-0.2.0-linux-arm64.AppImage',
+      'Weave Workbench-0.2.0-linux-arm64.deb',
+      'Weave Workbench-0.2.0-linux-x64.pacman',
+      'Weave Workbench-0.2.0-linux-x86_64.AppImage',
+      'Weave Workbench-0.2.0-linux-x86_64.rpm',
+      'latest-linux-arm64.yml',
+      'latest-linux.yml',
+    ])
+    expect(() => parseReleasePlatforms('mac,mac')).toThrow(/duplicates/)
+    expect(() => parseReleasePlatforms('mac,android')).toThrow(/Unsupported/)
+  })
+
+  test('keeps every release asset name in exact correspondence with electron-builder artifacts', () => {
+    // Derived from the same package.json build config and builder-util `${arch}`
+    // rules the packaging step uses, so renaming a target or adding an
+    // architecture fails here instead of during a real tag push.
+    const config = readElectronBuilderConfig()
+    const produced = producedReleaseArtifactNames(config, '0.2.0')
+    const names = releaseAssetNames('0.2.0')
+    const feeds = [...names.keys()].filter((name) => name.endsWith('.yml'))
+    expect(feeds).toEqual(['latest-linux-arm64.yml', 'latest-linux.yml', 'latest-mac.yml', 'latest.yml'])
+    // Every produced artifact is published and every published asset (other than
+    // the updater feeds) is produced - both directions, no index coupling.
+    expect([...names.values()].filter((name) => !name.endsWith('.yml')).sort()).toEqual(produced)
+    const targetCount = Object.entries(RELEASE_BUILD_MATRIX).reduce((total, [platform, architectures]) => total + architectures.length * config[platform].target.length, 0)
+    expect(produced).toHaveLength(targetCount)
+    // Only the two macOS DMGs are renamed for the public download page.
+    expect([...names].filter(([published, downloaded]) => published !== downloaded)).toEqual([
+      ['Weave Workbench-0.2.0-intel-chip.dmg', 'Weave Workbench-0.2.0-x64.dmg'],
+      ['Weave Workbench-0.2.0-m-chip.dmg', 'Weave Workbench-0.2.0-arm64.dmg'],
+      ['Weave Workbench-0.2.0-win-x64.msix', 'Weave Workbench-0.2.0-win-x64.appx'],
+    ])
+  })
+
+  test('covers exactly the platform and architecture legs the release workflow builds', () => {
+    const workflow = load(readFileSync('../.github/workflows/desktop-release.yml', 'utf8')) as {
+      jobs: Record<
+        string,
+        {
+          strategy?: { matrix?: { include?: Array<{ arch: string }> } }
+          steps?: Array<{ run?: string }>
+        }
+      >
+    }
+    const architectures = (job: string) => (workflow.jobs[job].strategy?.matrix?.include ?? []).map((leg) => leg.arch).sort()
+    expect(architectures('package')).toEqual([...RELEASE_BUILD_MATRIX.mac].sort())
+    expect(architectures('package-linux')).toEqual([...RELEASE_BUILD_MATRIX.linux].sort())
+    // The Windows leg is a single non-matrix job.
+    expect(workflow.jobs['package-windows'].strategy).toBeUndefined()
+    expect(RELEASE_BUILD_MATRIX.win).toEqual(['x64'])
+  })
+
+  test('reports the published name of a missing artifact through the rename map', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi-github-release-missing-'))
+    try {
+      const { projectDirectory, inputDirectory } = writeMacReleaseFixture(directory, { omit: 'Weave Workbench-0.2.0-arm64.dmg' })
+      // The arm64 DMG publishes as m-chip.dmg: the report must name the missing
+      // published asset, not whichever entry happens to share its sort index.
+      await expect(
+        prepareGitHubRelease({
+          inputDirectory,
+          outputDirectory: join(directory, 'out'),
+          projectDirectory,
+          platforms: ['mac'],
+          tag: 'v0.2.0',
+        }),
+      ).rejects.toThrow(/incomplete; missing Weave Workbench-0\.2\.0-m-chip\.dmg$/)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('takes legacy updater fields from the primary architecture manifest, not the first sorted path', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi-update-metadata-'))
+    try {
+      const arm64 = writeUpdateManifest(directory, 'a-arm64', 'Weave Workbench-0.2.0-arm64.zip', 'arm64-digest', '2026-01-01T00:00:00.000Z')
+      const x64 = writeUpdateManifest(directory, 'z-x64', 'Weave Workbench-0.2.0-x64.zip', 'x64-digest', '2026-02-02T00:00:00.000Z')
+      const merged = mergeUpdateMetadata([arm64, x64], '0.2.0')
+      expect(merged.path).toBe('Weave Workbench-0.2.0-x64.zip')
+      expect(merged.sha512).toBe('x64-digest')
+      expect(merged.releaseDate).toBe('2026-02-02T00:00:00.000Z')
+      expect(merged.files.map((file: { url: string }) => file.url)).toEqual(['Weave Workbench-0.2.0-arm64.zip', 'Weave Workbench-0.2.0-x64.zip'])
+      // Renaming the artifact directories reverses the path sort order without
+      // changing which manifest supplies the legacy fields.
+      const swappedArm64 = writeUpdateManifest(directory, 'z-arm', 'Weave Workbench-0.2.0-arm64.zip', 'arm64-digest', '2026-01-01T00:00:00.000Z')
+      const swappedX64 = writeUpdateManifest(directory, 'a-intel', 'Weave Workbench-0.2.0-x64.zip', 'x64-digest', '2026-02-02T00:00:00.000Z')
+      expect(mergeUpdateMetadata([swappedArm64, swappedX64], '0.2.0')).toEqual(merged)
+      expect(mergeUpdateMetadata([swappedX64, swappedArm64], '0.2.0')).toEqual(merged)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('rejects updater metadata without a usable size or digest', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi-update-metadata-invalid-'))
+    try {
+      const write = (name: string, file: string) => {
+        const path = join(directory, name)
+        writeFileSync(path, `version: 0.2.0\nfiles:\n${file}`)
+        return path
+      }
+      const sized = (size: string) => `  - url: Weave Workbench-0.2.0-x64.zip\n    sha512: digest\n    size: ${size}\n`
+      expect(() => mergeUpdateMetadata([write('missing-size.yml', '  - url: Weave Workbench-0.2.0-x64.zip\n    sha512: digest\n')], '0.2.0')).toThrow(/invalid size/)
+      expect(() => mergeUpdateMetadata([write('zero-size.yml', sized('0'))], '0.2.0')).toThrow(/invalid size/)
+      expect(() => mergeUpdateMetadata([write('negative-size.yml', sized('-1'))], '0.2.0')).toThrow(/invalid size/)
+      expect(() => mergeUpdateMetadata([write('text-size.yml', sized("'42'"))], '0.2.0')).toThrow(/invalid size/)
+      expect(() => mergeUpdateMetadata([write('empty-digest.yml', "  - url: Weave Workbench-0.2.0-x64.zip\n    sha512: ''\n    size: 42\n")], '0.2.0')).toThrow(/no sha512/)
+      expect(() => mergeUpdateMetadata([write('valid.yml', sized('42'))], '0.2.0')).not.toThrow()
+      expect(() => mergeUpdateMetadata([write('a.yml', sized('42')), write('b.yml', sized('43'))], '0.2.0')).toThrow(/disagrees/)
+      expect(() => mergeUpdateMetadata([], '0.2.0')).toThrow(/missing/)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('deletes only unexpected assets from a resumed draft release', () => {
+    const assets = ['Weave Workbench-0.2.0-m-chip.dmg', 'Weave Workbench-0.1.9-arm64.dmg', 'latest-mac.yml', 'SHA256SUMS.txt']
+    const expected = ['Weave Workbench-0.2.0-m-chip.dmg', 'latest-mac.yml', 'SHA256SUMS.txt']
+    expect(staleDraftReleaseAssets(assets, expected)).toEqual(['Weave Workbench-0.1.9-arm64.dmg'])
+    expect(staleDraftReleaseAssets(expected, expected)).toEqual([])
+    // An empty expected set would delete the whole draft, so it fails instead.
+    expect(() => staleDraftReleaseAssets(assets, [])).toThrow(/expected release asset set is empty/)
+    expect(parseDraftAssetNames(JSON.stringify({ assets: [{ name: 'a.dmg' }, { name: 'b.zip' }] }))).toEqual(['a.dmg', 'b.zip'])
+    expect(() => parseDraftAssetNames(JSON.stringify({ assets: [{ label: 'a.dmg' }] }))).toThrow(/without a name/)
+    expect(() => parseDraftAssetNames(JSON.stringify({}))).toThrow(/not an array/)
+  })
+
+  test('prints the stale draft assets when run as a script', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi-draft-prune-'))
+    try {
+      mkdirSync(join(directory, 'release-assets'))
+      for (const name of ['Weave Workbench-0.2.0-m-chip.dmg', 'SHA256SUMS.txt']) writeFileSync(join(directory, 'release-assets', name), 'asset')
+      writeFileSync(
+        join(directory, 'draft.json'),
+        JSON.stringify({
+          assets: [{ name: 'Weave Workbench-0.2.0-m-chip.dmg' }, { name: 'Weave Workbench-0.1.9-arm64.dmg' }],
+        }),
+      )
+      const args = ['scripts/release/prune-draft-release-assets.mjs', '--assets', join(directory, 'draft.json'), '--expected', join(directory, 'release-assets')]
+      const result = spawnSync(process.execPath, args, { encoding: 'utf8' })
+      expect(result.status).toBe(0)
+      expect(result.stdout.trim().split('\n')).toEqual(['Weave Workbench-0.1.9-arm64.dmg'])
+      const failed = spawnSync(process.execPath, args.slice(0, 3), {
+        encoding: 'utf8',
+      })
+      expect(failed.status).toBe(1)
+      expect(failed.stderr).toMatch(/Draft release asset pruning failed/)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('requires the tag and both package manifests to agree exactly', () => {
+    expect(assertReleaseTag('v0.2.0', '0.2.0', '0.2.0')).toEqual({
+      tag: 'v0.2.0',
+      version: '0.2.0',
+    })
+    expect(() => assertReleaseTag('0.2.0', '0.2.0', '0.2.0')).toThrow(/must exactly match/)
+    expect(() => assertReleaseTag('v0.2.1', '0.2.0', '0.2.0')).toThrow(/v0\.2\.0/)
+    expect(() => assertReleaseTag('v0.2.0', '0.2.0', '0.1.9')).toThrow(/does not match/)
+    expect(() => assertReleaseTag('v0.2.0', '0.2.0', '0.2.0', '0.1.9')).toThrow(/root package version/)
+    expect(() => assertReleaseTag('v01.2.3', '01.2.3', '01.2.3')).toThrow(/not a supported semantic version/)
+  })
+
+  test('selects the exact cross-platform asset set and writes reproducible checksums', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi-github-release-'))
+    const projectDirectory = join(directory, 'project')
+    const inputDirectory = join(directory, 'downloaded')
+    const outputDirectory = join(directory, 'release-assets')
+    mkdirSync(projectDirectory, { recursive: true })
+    mkdirSync(inputDirectory, { recursive: true })
+    writeFileSync(join(projectDirectory, 'package.json'), JSON.stringify({ version: '0.2.0' }))
+    writeFileSync(
+      join(projectDirectory, 'package-lock.json'),
+      JSON.stringify({
+        version: '0.2.0',
+        packages: { '': { version: '0.2.0' } },
+      }),
+    )
+    const expected = expectedGitHubReleaseAssets('0.2.0')
+    const downloaded = expectedDownloadedReleaseAssets('0.2.0')
+    for (const [index, name] of downloaded.entries()) {
+      const artifactDirectory = join(inputDirectory, `artifact-${index}`)
+      mkdirSync(artifactDirectory)
+      const updateTarget =
+        name === 'latest-mac.yml'
+          ? 'Weave Workbench-0.2.0-arm64.zip'
+          : name === 'latest-linux.yml'
+            ? 'Weave Workbench-0.2.0-linux-x86_64.AppImage'
+            : name === 'latest-linux-arm64.yml'
+              ? 'Weave Workbench-0.2.0-linux-arm64.AppImage'
+              : 'Weave Workbench-0.2.0-win-x64.exe'
+      const content = name.startsWith('latest')
+        ? `version: 0.2.0\nfiles:\n  - url: ${updateTarget}\n    sha512: checksum-${index}\n    size: ${index + 1}\n${name === 'latest-mac.yml' ? '  - url: Weave Workbench-0.2.0-arm64.dmg\n    sha512: checksum-arm64-dmg\n    size: 44\n' : ''}path: ${updateTarget}\nsha512: checksum-${index}\n`
+        : `asset ${index}`
+      writeFileSync(join(artifactDirectory, name), content)
+    }
+    const secondMacManifest = join(inputDirectory, 'macos-x64')
+    mkdirSync(secondMacManifest)
+    writeFileSync(join(secondMacManifest, 'latest-mac.yml'), 'version: 0.2.0\nfiles:\n  - url: Weave Workbench-0.2.0-x64.zip\n    sha512: checksum-x64\n    size: 42\n')
+    try {
+      const result = await prepareGitHubRelease({
+        inputDirectory,
+        outputDirectory,
+        projectDirectory,
+        tag: 'v0.2.0',
+      })
+      expect(result.assets).toEqual(expected)
+      expect(readdirSync(outputDirectory).sort()).toEqual([...expected, 'SHA256SUMS.txt'].sort())
+      const checksums = readFileSync(join(outputDirectory, 'SHA256SUMS.txt'), 'utf8').trim().split('\n')
+      expect(checksums).toHaveLength(expected.length)
+      for (const name of expected) {
+        const digest = createHash('sha256')
+          .update(readFileSync(join(outputDirectory, name)))
+          .digest('hex')
+        expect(checksums).toContain(`${digest}  ${name}`)
+      }
+      const macFeed = readFileSync(join(outputDirectory, 'latest-mac.yml'), 'utf8')
+      expect(macFeed).toContain('Weave Workbench-0.2.0-arm64.zip')
+      expect(macFeed).toContain('Weave Workbench-0.2.0-x64.zip')
+      expect(macFeed).toContain('Weave Workbench-0.2.0-m-chip.dmg')
+      expect(macFeed).not.toContain('Weave Workbench-0.2.0-arm64.dmg')
+      const linuxFeed = readFileSync(join(outputDirectory, 'latest-linux.yml'), 'utf8')
+      expect(linuxFeed).toContain('Weave Workbench-0.2.0-linux-x86_64.AppImage')
+      expect(linuxFeed).not.toContain('Weave Workbench-0.2.0-linux-arm64.AppImage')
+      const linuxArmFeed = readFileSync(join(outputDirectory, 'latest-linux-arm64.yml'), 'utf8')
+      expect(linuxArmFeed).toContain('Weave Workbench-0.2.0-linux-arm64.AppImage')
+      expect(linuxArmFeed).not.toContain('Weave Workbench-0.2.0-linux-x86_64.AppImage')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('rejects incomplete and duplicate downloaded release assets', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi-github-release-invalid-'))
+    const projectDirectory = join(directory, 'project')
+    const inputDirectory = join(directory, 'downloaded')
+    mkdirSync(projectDirectory, { recursive: true })
+    mkdirSync(inputDirectory, { recursive: true })
+    writeFileSync(join(projectDirectory, 'package.json'), JSON.stringify({ version: '0.2.0' }))
+    writeFileSync(
+      join(projectDirectory, 'package-lock.json'),
+      JSON.stringify({
+        version: '0.2.0',
+        packages: { '': { version: '0.2.0' } },
+      }),
+    )
+
+    try {
+      await expect(
+        prepareGitHubRelease({
+          inputDirectory,
+          outputDirectory: join(directory, 'missing-output'),
+          projectDirectory,
+          tag: 'v0.2.0',
+        }),
+      ).rejects.toThrow(/incomplete/)
+      const expected = expectedDownloadedReleaseAssets('0.2.0')
+      for (const [index, name] of expected.entries()) {
+        const artifactDirectory = join(inputDirectory, `artifact-${index}`)
+        mkdirSync(artifactDirectory)
+        const updateTarget =
+          name === 'latest-mac.yml'
+            ? 'Weave Workbench-0.2.0-arm64.zip'
+            : name === 'latest-linux.yml'
+              ? 'Weave Workbench-0.2.0-linux-x86_64.AppImage'
+              : name === 'latest-linux-arm64.yml'
+                ? 'Weave Workbench-0.2.0-linux-arm64.AppImage'
+                : 'Weave Workbench-0.2.0-win-x64.exe'
+        writeFileSync(join(artifactDirectory, name), name.startsWith('latest') ? `version: 0.2.0\nfiles:\n  - url: ${updateTarget}\n    sha512: checksum-${index}\n` : `asset ${index}`)
+      }
+      const duplicateDirectory = join(inputDirectory, 'duplicate')
+      mkdirSync(duplicateDirectory)
+      writeFileSync(join(duplicateDirectory, expected[0]), 'duplicate')
+      await expect(
+        prepareGitHubRelease({
+          inputDirectory,
+          outputDirectory: join(directory, 'duplicate-output'),
+          projectDirectory,
+          tag: 'v0.2.0',
+        }),
+      ).rejects.toThrow(/duplicate/)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('fuse hardening configuration', () => {
+  test('uses only the configured canonical afterPack hook', () => {
+    const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
+    expect(packageJson.build.afterPack).toBe('scripts/release/after-pack.cjs')
+    expect(() => readFileSync('scripts/afterPack.cjs', 'utf8')).toThrow()
+    expect(readFileSync(packageJson.build.afterPack, 'utf8')).toContain('FuseV1Options.OnlyLoadAppFromAsar')
+  })
+})
+
+describe('coverage configuration', () => {
+  test('loads the fail-closed inventory without weakening thresholds', () => {
+    const config = readFileSync('vitest.config.ts', 'utf8')
+    expect(config).toContain("from './scripts/release/coverage-inventory'")
+    expect(config).toContain('include: coverageInventory.includePatterns')
+    expect(config).toContain('statements: 65')
+    expect(config).toContain('branches: 50')
+    expect(config).toContain('functions: 70')
+    expect(config).toContain('lines: 75')
+  })
+})
+
+describe('post-package verification helpers', () => {
+  test('parses Team IDs and architecture lists', () => {
+    expect(parseTeamIdentifier('Authority=Developer ID\nTeamIdentifier=TEAM123\n')).toBe('TEAM123')
+    expect(parseArchitectures('arm64 x86_64\n')).toEqual(new Set(['arm64', 'x86_64']))
+  })
+
+  test('requires exactly one DMG and ZIP and binds their declared architecture', () => {
+    expect(requireReleaseArtifacts(['/release/Prime Work-0.1.0-arm64.dmg', '/release/Prime Work-0.1.0-arm64.zip'])).toEqual({
+      dmg: '/release/Prime Work-0.1.0-arm64.dmg',
+      zip: '/release/Prime Work-0.1.0-arm64.zip',
+    })
+    expect(() => requireReleaseArtifacts(['/release/Prime Work-0.1.0-arm64.dmg'])).toThrow(/ZIP/)
+    expect(artifactArchitectures('Prime Work-0.1.0-universal.zip')).toEqual(new Set(['arm64', 'x86_64']))
+    expect(() => assertExactArchitectures(new Set(['arm64']), artifactArchitectures('Prime Work-0.1.0-arm64.dmg'), 'DMG')).not.toThrow()
+    expect(() => assertExactArchitectures(new Set(['x86_64']), artifactArchitectures('Prime Work-0.1.0-arm64.dmg'), 'DMG')).toThrow(/do not match/)
+  })
+
+  test('requires native modules to cover every application architecture', () => {
+    expect(() => assertArchitectureCoverage(new Set(['arm64']), new Set(['arm64']), 'pty.node')).not.toThrow()
+    expect(() => assertArchitectureCoverage(new Set(['arm64', 'x86_64']), new Set(['arm64']), 'pty.node')).toThrow(/x86_64/)
+  })
+
+  test('requires the ASAR and rejects duplicated renderer dependencies', () => {
+    const entries = [
+      '/out/main/index.js',
+      '/out/preload/index.js',
+      '/out/renderer/index.html',
+      '/node_modules/node-pty/lib/index.js',
+      '/node_modules/partial-json/dist/index.js',
+      '/node_modules/zeromq/lib/index.js',
+      '/node_modules/zeromq/build/manifest.json',
+    ]
+    expect(() => assertAsarLayout(entries)).not.toThrow()
+    expect(() => assertAsarLayout([...entries, '/node_modules/react/index.js'])).toThrow(/duplicated/)
+    expect(() => assertAsarLayout(entries.filter((entry) => !entry.includes('partial-json')))).toThrow(/partial-json/)
+    expect(() => assertAsarLayout(entries.filter((entry) => !entry.includes('node-pty')))).toThrow(/missing required/)
+    expect(() => assertAsarLayout(entries.map((entry) => entry.replaceAll('/', '\\')))).not.toThrow()
+  })
+
+  test('keeps every platform native unpack allowlist exact and architecture-specific', () => {
+    const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    expect(packageJson.author).toEqual({
+      name: 'Weave Workbench contributors',
+      email: '260412432+jinyitao123@users.noreply.github.com',
+    })
+    expect(packageJson.description).toBe('The desktop workspace for Weave teams and Forge business applications')
+    expect(packageJson.homepage).toBe('https://github.com/jinyitao123/weave-workbench')
+    expect(packageJson.build.productName).toBe('Weave Workbench')
+    expect(packageJson.build.appId).toBe('com.inocube.weave-workbench')
+    expect(packageJson.desktopName).toBe('weave-workbench.desktop')
+    expect(packageJson.build.linux.synopsis).toBe(packageJson.description)
+    expect(packageJson.build.linux.syncDesktopName).toBe(true)
+    expect(packageJson.build.mac.icon).toBe('assets/icon.icns')
+    expect(packageJson.build.mac.extendInfo.LSUIElement).toBe(true)
+    expect(packageJson.build.linux.icon).toBe('assets/icon.png')
+    expect(packageJson.build.win.icon).toBe('assets/icon.ico')
+    const windowsIcon = readFileSync(packageJson.build.win.icon)
+    expect(windowsIcon.readUInt16LE(0)).toBe(0)
+    expect(windowsIcon.readUInt16LE(2)).toBe(1)
+    expect(windowsIcon.readUInt16LE(4)).toBe(9)
+    const windowsIconSizes = Array.from({ length: windowsIcon.readUInt16LE(4) }, (_, index) => {
+      const entry = 6 + index * 16
+      const width = windowsIcon[entry] || 256
+      const height = windowsIcon[entry + 1] || 256
+      const length = windowsIcon.readUInt32LE(entry + 8)
+      const offset = windowsIcon.readUInt32LE(entry + 12)
+      expect(offset).toBeGreaterThanOrEqual(6 + windowsIcon.readUInt16LE(4) * 16)
+      expect(length).toBeGreaterThan(0)
+      expect(offset + length).toBeLessThanOrEqual(windowsIcon.length)
+      expect(windowsIcon.subarray(offset, offset + 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+      return [width, height]
+    })
+    expect(windowsIconSizes).toEqual([16, 20, 24, 32, 40, 48, 64, 128, 256].map((size) => [size, size]))
+    const macIcon = readFileSync('assets/icon.icns')
+    expect(macIcon.subarray(0, 4).toString('ascii')).toBe('icns')
+    const macIconChunks = new Map<string, Buffer>()
+    for (let offset = 8; offset < macIcon.length; ) {
+      const type = macIcon.subarray(offset, offset + 4).toString('ascii')
+      const size = macIcon.readUInt32BE(offset + 4)
+      expect(size).toBeGreaterThanOrEqual(8)
+      macIconChunks.set(type, macIcon.subarray(offset + 8, offset + size))
+      offset += size
+    }
+    // The previous checked-in ICNS silently contained Prime artwork. Anchor
+    // its full-size layer to the shared canonical PNG and retain small layers.
+    expect(macIconChunks.get('ic10')).toEqual(readFileSync('assets/icon.png'))
+    expect(macIconChunks.get('icp4')).toEqual(readFileSync('assets/icon.iconset/icon_16x16.png'))
+    expect(macIconChunks.has('ic11')).toBe(true)
+    expect(packageJson.build.asarUnpack).toBeUndefined()
+    expect(packageJson.build.mac.asarUnpack).toEqual([
+      '**/node_modules/node-pty/build/Release/pty.node',
+      '**/node_modules/node-pty/build/Release/spawn-helper',
+      '**/node_modules/zeromq/build/darwin/${arch}/node/*-Release/addon.node',
+    ])
+    expect(packageJson.build.linux.asarUnpack).toEqual(['**/node_modules/node-pty/build/Release/pty.node', '**/node_modules/zeromq/build/linux/${arch}/node/*-Release/addon.node'])
+    expect(packageJson.build.win.asarUnpack).toEqual([
+      '**/node_modules/node-pty/prebuilds/win32-${arch}/pty.node',
+      '**/node_modules/node-pty/prebuilds/win32-${arch}/conpty.node',
+      '**/node_modules/node-pty/prebuilds/win32-${arch}/conpty_console_list.node',
+      '**/node_modules/node-pty/prebuilds/win32-${arch}/winpty-agent.exe',
+      '**/node_modules/node-pty/prebuilds/win32-${arch}/winpty.dll',
+      '**/node_modules/node-pty/prebuilds/win32-${arch}/conpty/OpenConsole.exe',
+      '**/node_modules/node-pty/prebuilds/win32-${arch}/conpty/conpty.dll',
+      '**/node_modules/zeromq/build/win32/${arch}/node/*-Release/addon.node',
+    ])
+    expect(packageJson.build.linux.target).toEqual(['AppImage', 'deb', 'rpm', 'pacman'])
+    expect(packageJson.build.win.target).toEqual(['nsis', 'zip', 'appx'])
+    expect(packageJson.build.directories.output).toBe('release')
+    expect(packageJson.build.electronDist).toBe('node_modules/electron/dist')
+  })
+
+  test('verifies and uploads every configured Linux installer format', () => {
+    expect(expectedArtifactExtensions('linux')).toEqual(['.AppImage', '.deb', '.rpm', '.pacman'])
+    expect(expectedArtifactExtensions('win')).toEqual(['.exe', '.zip', '.appx'])
+    const ciWorkflow = readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')
+    const releaseWorkflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    expect(ciWorkflow).toContain('release/linux/**/*.pacman')
+    expect(releaseWorkflow).toContain('release/linux/${{ matrix.arch }}/*.pacman')
+  })
+
+  test('fails closed when Windows Authenticode verification is not valid', () => {
+    const signerEnvironment = {
+      GOOEYPI_WINDOWS_CERT_SUBJECT: 'CN=Example Ltd',
+    }
+    const calls: Array<{
+      file: string
+      args: string[]
+      path: string | undefined
+    }> = []
+    const validSpawn = (file: string, args: string[], options: { env?: NodeJS.ProcessEnv }) => {
+      calls.push({ file, args, path: options.env?.GOOEYPI_SIGNED_FILE })
+      return { status: 0, stdout: '', stderr: '' }
+    }
+    const spawn = validSpawn as unknown as Parameters<typeof assertValidAuthenticode>[1]
+    expect(() => assertValidAuthenticode('C:\\release\\GooeyPi.exe', spawn, signerEnvironment)).not.toThrow()
+    expect(calls).toEqual([
+      {
+        file: 'powershell.exe',
+        args: expect.arrayContaining(['-NoProfile', '-NonInteractive', '-Command']),
+        path: 'C:\\release\\GooeyPi.exe',
+      },
+    ])
+    const invalidSpawn = () => ({ status: 1, stdout: '', stderr: 'NotSigned' })
+    expect(() => assertValidAuthenticode('C:\\release\\GooeyPi.exe', invalidSpawn as unknown as Parameters<typeof assertValidAuthenticode>[1], signerEnvironment)).toThrow(/NotSigned/)
+  })
+
+  test('asserts the expected Authenticode signer instead of any trusted certificate', () => {
+    expect(
+      expectedAuthenticodeSigner({
+        GOOEYPI_WINDOWS_CERT_SUBJECT: '  CN=Example Ltd, C=GB  ',
+      }),
+    ).toEqual({ subject: 'CN=Example Ltd, C=GB', thumbprint: '' })
+    expect(
+      expectedAuthenticodeSigner({
+        GOOEYPI_WINDOWS_CERT_THUMBPRINT: 'a1:b2 c3d4e5f60718293a4b5c6d7e8f901a2b3c4d',
+      }),
+    ).toEqual({
+      subject: '',
+      thumbprint: 'A1B2C3D4E5F60718293A4B5C6D7E8F901A2B3C4D',
+    })
+    expect(() =>
+      expectedAuthenticodeSigner({
+        GOOEYPI_WINDOWS_CERT_THUMBPRINT: 'not-a-thumbprint',
+      }),
+    ).toThrow(/40-character SHA-1 certificate thumbprint/)
+    // Unconfigured fails closed rather than accepting whoever the runner trusts.
+    expect(() => expectedAuthenticodeSigner({})).toThrow(/GOOEYPI_WINDOWS_CERT_SUBJECT and\/or GOOEYPI_WINDOWS_CERT_THUMBPRINT/)
+
+    const calls: Array<{ args: string[]; env: NodeJS.ProcessEnv | undefined }> = []
+    const spawn = (_file: string, args: string[], options: { env?: NodeJS.ProcessEnv }) => {
+      calls.push({ args, env: options.env })
+      return { status: 0, stdout: '', stderr: '' }
+    }
+    assertValidAuthenticode('C:\\release\\GooeyPi.exe', spawn as unknown as Parameters<typeof assertValidAuthenticode>[1], {
+      GOOEYPI_WINDOWS_CERT_SUBJECT: 'CN=Example Ltd',
+      GOOEYPI_WINDOWS_CERT_THUMBPRINT: 'a1b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d',
+    })
+    // The file path and expected signer are passed as environment variables, never
+    // interpolated into the script, and a terminating error exits non-zero.
+    expect(calls[0].env).toMatchObject({
+      GOOEYPI_SIGNED_FILE: 'C:\\release\\GooeyPi.exe',
+      GOOEYPI_WINDOWS_CERT_SUBJECT: 'CN=Example Ltd',
+      GOOEYPI_WINDOWS_CERT_THUMBPRINT: 'A1B2C3D4E5F60718293A4B5C6D7E8F901A2B3C4D',
+    })
+    const script = calls[0].args.at(-1) as string
+    expect(script).not.toContain('C:\\release\\GooeyPi.exe')
+    expect(script).toContain("$ErrorActionPreference = 'Stop'")
+    expect(script).toContain('try {')
+    expect(script).toContain('} catch {')
+    expect(script).toContain('exit 1')
+    expect(script).toContain('$certificate.Subject -ne $env:GOOEYPI_WINDOWS_CERT_SUBJECT')
+    expect(script).toContain('$certificate.Thumbprint.ToUpperInvariant() -ne $env:GOOEYPI_WINDOWS_CERT_THUMBPRINT')
+  })
+
+  test('excludes other platform native build trees and declares zeromq directly', () => {
+    const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    const optimizedAgentExclusions = [
+      '!**/node_modules/prime-agent/docs/**',
+      '!**/node_modules/prime-agent/dist/bundle/**',
+      '!**/node_modules/prime-agent/dist/modes/**',
+      '!**/node_modules/prime-agent/**/*.map',
+      '!**/node_modules/prime-agent/**/*.d.ts',
+      '!**/node_modules/@earendil-works/pi-tui/**',
+      '!**/node_modules/koffi/**',
+    ]
+    expect(packageJson.build.mac.files).toEqual([
+      'out/**/*',
+      'package.json',
+      ...optimizedAgentExclusions,
+      '!**/node_modules/zeromq/build/linux/**',
+      '!**/node_modules/zeromq/build/win32/**',
+      '!**/node_modules/extract-zip/index.linux-*.node',
+      '!**/node_modules/extract-zip/index.win32-*.node',
+    ])
+    expect(packageJson.build.linux.files).toEqual([
+      'out/**/*',
+      'package.json',
+      ...optimizedAgentExclusions,
+      '!**/node_modules/zeromq/build/darwin/**',
+      '!**/node_modules/zeromq/build/win32/**',
+      '!**/node_modules/extract-zip/index.darwin-*.node',
+      '!**/node_modules/extract-zip/index.win32-*.node',
+    ])
+    expect(packageJson.build.win.files).toEqual([
+      'out/**/*',
+      'package.json',
+      ...optimizedAgentExclusions,
+      '!**/node_modules/zeromq/build/darwin/**',
+      '!**/node_modules/zeromq/build/linux/**',
+      '!**/node_modules/extract-zip/index.darwin-*.node',
+      '!**/node_modules/extract-zip/index.linux-*.node',
+    ])
+    // Pin the app to the zeromq range prime-agent uses so the packaged addon
+    // and the agent's runtime expectations cannot drift apart silently.
+    const primeAgent = JSON.parse(readFileSync(new URL('../node_modules/prime-agent/package.json', import.meta.url), 'utf8'))
+    expect(packageJson.dependencies.zeromq).toBe(primeAgent.dependencies.zeromq)
+  })
+
+  test('accepts bounded ZeroMQ ABI fallbacks per architecture', () => {
+    const architectures = new Set(['arm64'])
+    const fallbackDirectory = createUnpackedFixture(architectures)
+    const fallback = join(fallbackDirectory, fixtureAddonPath('arm64', 'libc-999-Release'))
+    mkdirSync(dirname(fallback), { recursive: true })
+    writeFileSync(fallback, 'fixture')
+    try {
+      expect(() => assertUnpackedNativeLayout(fallbackDirectory, architectures, () => architectures)).not.toThrow()
+    } finally {
+      rmSync(fallbackDirectory, { recursive: true, force: true })
+    }
+
+    const futureDirectory = mkdtempSync(join(tmpdir(), 'prime-work-unpacked-'))
+    for (const relativePath of [...expectedUnpackedNativeLayout(architectures).files, fixtureAddonPath('arm64', 'libc-999-Release')]) {
+      const path = join(futureDirectory, relativePath)
+      mkdirSync(dirname(path), { recursive: true })
+      writeFileSync(path, 'fixture')
+    }
+    try {
+      // A future runtime-library name still matches the bounded wildcard.
+      expect(() => assertUnpackedNativeLayout(futureDirectory, architectures, () => architectures)).not.toThrow()
+    } finally {
+      rmSync(futureDirectory, { recursive: true, force: true })
+    }
+  })
+
+  test('accepts the exact unpacked native fixture with complete architecture coverage', () => {
+    const architectures = new Set(['arm64'])
+    const directory = createUnpackedFixture(architectures)
+    try {
+      expect(() => assertUnpackedNativeLayout(directory, architectures, () => new Set(['arm64']))).not.toThrow()
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('rejects missing and extra unpacked fixture files', () => {
+    const architectures = new Set(['arm64'])
+    const missingDirectory = createUnpackedFixture(architectures)
+    rmSync(join(missingDirectory, expectedUnpackedNativeLayout(architectures).files.at(-1)!))
+    try {
+      expect(() => assertUnpackedNativeLayout(missingDirectory, architectures, () => architectures)).toThrow(/Missing unpacked/)
+    } finally {
+      rmSync(missingDirectory, { recursive: true, force: true })
+    }
+
+    const extraDirectory = createUnpackedFixture(architectures)
+    const extraPath = join(extraDirectory, 'node_modules/extra/native.node')
+    mkdirSync(dirname(extraPath), { recursive: true })
+    writeFileSync(extraPath, 'fixture')
+    try {
+      expect(() => assertUnpackedNativeLayout(extraDirectory, architectures, () => architectures)).toThrow(/Unexpected unpacked.*extra/)
+    } finally {
+      rmSync(extraDirectory, { recursive: true, force: true })
+    }
+
+    const extraPrefixDirectory = createUnpackedFixture(architectures)
+    mkdirSync(join(extraPrefixDirectory, 'empty-prefix'))
+    try {
+      expect(() => assertUnpackedNativeLayout(extraPrefixDirectory, architectures, () => architectures)).toThrow(/Unexpected unpacked.*empty-prefix/)
+    } finally {
+      rmSync(extraPrefixDirectory, { recursive: true, force: true })
+    }
+  })
+
+  test('checks every allowed native fixture file against the application architecture', () => {
+    const architectures = new Set(['arm64'])
+    const directory = createUnpackedFixture(architectures)
+    try {
+      expect(() => assertUnpackedNativeLayout(directory, architectures, (path: string) => (path.endsWith('addon.node') ? new Set(['x86_64']) : new Set(['arm64'])))).toThrow(
+        /addon\.node is missing app architecture.*arm64/,
+      )
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('cross-platform packaging repair', () => {
+  const fixtureContext = {
+    appOutDir: join('/tmp', 'app-out'),
+    packager: {
+      appInfo: { productFilename: 'Prime Work', sanitizedName: 'Prime-Work' },
+      executableName: 'builder-selected-linux-name',
+    },
+  }
+
+  test('computes the hardened executable path per platform', () => {
+    expect(executablePath(fixtureContext, 'darwin')).toBe(join('/tmp', 'app-out', 'Prime Work.app', 'Contents', 'MacOS', 'Prime Work'))
+    expect(executablePath(fixtureContext, 'win32')).toBe(join('/tmp', 'app-out', 'Prime Work.exe'))
+    expect(executablePath(fixtureContext, 'linux')).toBe(join('/tmp', 'app-out', 'builder-selected-linux-name'))
+  })
+
+  test('resolves platform executableName overrides and the Linux package-name fallback', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi-executable-name-'))
+    const configuration = {
+      executableName: 'global-executable',
+      productName: 'Weave Workbench',
+      linux: { executableName: 'linux-platform-executable' },
+      win: { executableName: 'windows-platform-executable' },
+    }
+    try {
+      writeFileSync(join(directory, 'linux-platform-executable'), 'linux')
+      writeFileSync(join(directory, 'windows-platform-executable.exe'), 'windows')
+      writeFileSync(join(directory, 'weave-workbench-desktop'), 'linux fallback')
+
+      // The smoke launcher calls this resolver directly, so it uses these same names.
+      expect(packagedExecutablePath(directory, 'linux', configuration)).toBe(join(directory, 'linux-platform-executable'))
+      expect(packagedExecutablePath(directory, 'win', configuration)).toBe(join(directory, 'windows-platform-executable.exe'))
+      expect(
+        packagedExecutablePath(directory, 'linux', {
+          productName: 'Different Product Name',
+        }),
+      ).toBe(join(directory, 'weave-workbench-desktop'))
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  function globMatchExists(directory: string, segments: string[]): boolean {
+    if (!existsSync(directory) || !statSync(directory).isDirectory()) return false
+    const [head, ...rest] = segments
+    if (head === undefined) return false
+    if (head === '**') {
+      if (globMatchExists(directory, rest)) return true
+      return readdirSync(directory, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .some((entry) => globMatchExists(join(directory, entry.name), segments))
+    }
+    if (head.includes('*')) {
+      const pattern = new RegExp(
+        `^${head
+          .split('*')
+          .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+          .join('[^/]*')}$`,
+      )
+      const entries = readdirSync(directory, { withFileTypes: true })
+      if (rest.length === 0) return entries.some((entry) => entry.isFile() && pattern.test(entry.name))
+      return entries.filter((entry) => entry.isDirectory() && pattern.test(entry.name)).some((entry) => globMatchExists(join(directory, entry.name), rest))
+    }
+    const next = join(directory, head)
+    if (rest.length === 0) return existsSync(next) && statSync(next).isFile()
+    return globMatchExists(next, rest)
+  }
+
+  test('every asarUnpack glob matches at least one real file for platforms present in node_modules', () => {
+    const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    const root = new URL('..', import.meta.url).pathname
+    const localArchitecture = process.arch === 'arm64' ? 'arm64' : 'x64'
+    const localTarget = process.platform === 'darwin' ? 'mac' : process.platform
+    const architecturesFor = (glob: string) => (glob.includes('node-pty/build/Release') ? [localArchitecture] : ['arm64', 'x64'])
+    for (const target of ['mac', 'linux', 'win']) {
+      for (const glob of packageJson.build[target].asarUnpack as string[]) {
+        if (glob.includes('node-pty/build/Release') && target !== localTarget) continue
+        const covered = architecturesFor(glob).some((architecture) => {
+          const relativeGlob = glob.replace(/^\*\*\//, '').replaceAll('${arch}', architecture)
+          const platformRoot = relativeGlob.split('/').slice(0, 4).join('/')
+          if (!existsSync(join(root, platformRoot))) return false
+          return globMatchExists(root, relativeGlob.split('/'))
+        })
+        expect(covered, `asarUnpack glob matches no file in node_modules: ${glob}`).toBe(true)
+      }
+    }
+  })
+
+  test('the verifier and package.json agree on native directory naming', () => {
+    const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    for (const [target, architecture] of [
+      ['win', 'x64'],
+      ['win', 'arm64'],
+      ['linux', 'x64'],
+      ['linux', 'arm64'],
+    ] as const) {
+      const globs = (packageJson.build[target].asarUnpack as string[]).map((glob) => glob.replace(/^\*\*\//, '').replaceAll('${arch}', architecture))
+      for (const file of expectedNativeFiles(target, architecture)) {
+        expect(globs, `verifier requires ${file} but no ${target} asarUnpack glob produces it`).toContain(file)
+      }
+      const zeroMqGlob = globs.find((glob) => glob.includes('zeromq'))
+      expect(zeroMqGlob).toBe(`node_modules/zeromq/build/${nativeRuntimeDirectory(target)}/${architecture}/node/*-Release/addon.node`)
+      const sampleAddon = `node_modules/zeromq/build/${nativeRuntimeDirectory(target)}/${architecture}/node/glibc-x64-115-Release/addon.node`
+      expect(zeroMqAddonPattern(target, architecture).test(sampleAddon)).toBe(true)
+    }
+    expect(nativeRuntimeDirectory('win')).toBe('win32')
+    expect(nativeRuntimeDirectory('linux')).toBe('linux')
+  })
+
+  test('accepts ZeroMQ ABI and libc fallbacks only within the target architecture', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'prime-work-cross-platform-unpacked-'))
+    const nativeFiles = [
+      ...expectedNativeFiles('linux', 'x64'),
+      'node_modules/zeromq/build/linux/x64/node/glibc-127-Release/addon.node',
+      'node_modules/zeromq/build/linux/x64/node/musl-127-Release/addon.node',
+    ]
+    for (const relativePath of nativeFiles) {
+      const path = join(directory, relativePath)
+      mkdirSync(dirname(path), { recursive: true })
+      writeFileSync(path, 'fixture')
+    }
+    try {
+      expect(() => assertCrossPlatformUnpackedNativeLayout(directory, 'linux', 'x64')).not.toThrow()
+      rmSync(join(directory, 'node_modules/zeromq'), {
+        recursive: true,
+        force: true,
+      })
+      expect(() => assertCrossPlatformUnpackedNativeLayout(directory, 'linux', 'x64')).toThrow(/expected at least 1/)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('resolves release-script commands to Windows-safe spawns', () => {
+    expect(resolveCommandInvocation('node', ['scripts/release/verify.mjs'])).toEqual({
+      file: process.execPath,
+      args: ['scripts/release/verify.mjs'],
+      shell: false,
+    })
+    const electronInstaller = resolveCommandInvocation('install-electron', [])
+    expect(electronInstaller.file).toBe(process.execPath)
+    expect(electronInstaller.args).toHaveLength(1)
+    expect(electronInstaller.args[0]).toMatch(/node_modules[\\/]electron[\\/]install\.js$/)
+    expect(electronInstaller.shell).toBe(false)
+    const builder = resolveCommandInvocation('electron-builder', ['install-app-deps'])
+    expect(builder.file).toBe(process.execPath)
+    expect(builder.shell).toBe(false)
+    expect(builder.args[0]).toMatch(/electron-builder[\\/]cli\.js$/)
+    expect(builder.args.at(-1)).toBe('install-app-deps')
+    const packageScript = readFileSync('scripts/release/package.mjs', 'utf8')
+    expect(packageScript).toContain("run('node', ['scripts/release/electron-builder.mjs', ...builderArgs], builderEnv)")
+    expect(packageScript).not.toContain("['exec', '--', 'electron-builder'")
+    const npmViaLifecycle = resolveCommandInvocation('npm', ['run', 'release:verify'], 'win32', { npm_execpath: 'C:/npm/npm-cli.js' })
+    expect(npmViaLifecycle).toEqual({
+      file: process.execPath,
+      args: ['C:/npm/npm-cli.js', 'run', 'release:verify'],
+      shell: false,
+    })
+    expect(() =>
+      resolveCommandInvocation('npm', ['ci'], 'win32', {
+        npm_execpath: 'C:/npm/npm.cmd',
+      }),
+    ).toThrow(/JavaScript npm CLI/)
+    expect(resolveCommandInvocation('npm', ['ci'], 'darwin', {})).toEqual({
+      file: 'npm',
+      args: ['ci'],
+      shell: false,
+    })
+  })
+
+  test('installs Electron before rebuilding native app dependencies', () => {
+    const calls: Array<{
+      command: string
+      args: string[]
+      env: NodeJS.ProcessEnv
+    }> = []
+    const run = (command: string, args: string[], options: { env?: NodeJS.ProcessEnv } = {}) => {
+      calls.push({ command, args, env: options.env ?? {} })
+    }
+
+    installAppDependencies(run, { TASK_MARKER: 'kept' }, 'darwin')
+
+    expect(calls.map(({ command, args }) => ({ command, args }))).toEqual([
+      { command: 'install-electron', args: [] },
+      { command: 'electron-builder', args: ['install-app-deps'] },
+    ])
+    expect(calls[0].env).toBe(calls[1].env)
+    expect(calls[0].env).toMatchObject({
+      TASK_MARKER: 'kept',
+      PYTHON: '/usr/bin/python3',
+    })
+  })
+})
+
+describe('DMG verification cleanup', () => {
+  test('detach failures are logged instead of masking the original error and cleanup always runs', () => {
+    const source = readFileSync('scripts/release/verify-package.mjs', 'utf8')
+    const verifyDmg = source.slice(source.indexOf('async function verifyDmg'), source.indexOf('export async function verifyPackage'))
+    // hdiutil detach runs inside its own try/catch that only logs.
+    expect(verifyDmg).toMatch(/try\s*\{\s*run\('hdiutil', \['detach', mountPoint\]\)\s*\}\s*catch \(detachError\)\s*\{\s*console\.error/)
+    // The rmSync cleanup is attempted unconditionally after the detach attempt.
+    const finallyIndex = verifyDmg.indexOf('} finally {')
+    const cleanupIndex = verifyDmg.indexOf('rmSync(mountPoint, { recursive: true, force: true })')
+    expect(finallyIndex).toBeGreaterThan(-1)
+    expect(cleanupIndex).toBeGreaterThan(finallyIndex)
+    expect(verifyDmg.slice(cleanupIndex)).not.toContain('detach')
+  })
+})
+
+describe('release size budgets', () => {
+  test('measures deterministic build-output fixtures', () => {
+    const directory = createBundleSizeFixture()
+    try {
+      const metrics = collectBundleSizeMetrics(directory)
+      expect(metrics).toEqual({
+        mainBytes: 101,
+        preloadBytes: 102,
+        initialRendererBytes: 207,
+        largestRendererChunkBytes: 106,
+        rendererJsCssBytes: 418,
+      })
+      expect(() => assertBundleSizeBudgets(metrics)).not.toThrow()
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test.each(Object.keys(BUNDLE_SIZE_BUDGETS))('rejects a %s bundle regression above its exact budget', (name) => {
+    const metrics = {
+      ...BUNDLE_SIZE_BUDGETS,
+      [name]: BUNDLE_SIZE_BUDGETS[name as keyof typeof BUNDLE_SIZE_BUDGETS] + 1,
+    }
+    expect(() => assertBundleSizeBudgets(metrics)).toThrow(/exceeds its size budget/)
+    expect(() => assertBundleSizeBudgets(BUNDLE_SIZE_BUDGETS)).not.toThrow()
+  })
+
+  test('measures deterministic package fixtures and enforces every artifact budget', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'prime-work-package-size-'))
+    const paths = {
+      app: join(directory, 'Prime Work.app'),
+      asar: join(directory, 'Prime Work.app/Contents/Resources/app.asar'),
+      dmg: join(directory, 'Prime Work.dmg'),
+      zip: join(directory, 'Prime Work.zip'),
+    }
+    writeSizedFile(paths.asar, 201)
+    writeSizedFile(join(paths.app, 'Contents/MacOS/Prime Work'), 202)
+    writeSizedFile(paths.dmg, 203)
+    writeSizedFile(paths.zip, 204)
+    try {
+      const metrics = collectPackageSizeMetrics(paths)
+      expect(metrics).toEqual({
+        asarBytes: 201,
+        appBytes: 403,
+        runtimeBytes: 0,
+        totalAppBytes: 403,
+        dmgBytes: 203,
+        zipBytes: 204,
+      })
+      writeSizedFile(join(paths.app, 'Contents/Resources/runtime/bin/node'), 205)
+      expect(collectPackageSizeMetrics(paths)).toMatchObject({
+        appBytes: 403,
+        runtimeBytes: 205,
+        totalAppBytes: 608,
+      })
+      expect(() => assertPackageSizeBudgets(metrics)).not.toThrow()
+      for (const name of Object.keys(PACKAGE_SIZE_BUDGETS)) {
+        expect(() =>
+          assertPackageSizeBudgets({
+            ...PACKAGE_SIZE_BUDGETS,
+            [name]: PACKAGE_SIZE_BUDGETS[name as keyof typeof PACKAGE_SIZE_BUDGETS] + 1,
+          }),
+        ).toThrow(/exceeds its size budget/)
+      }
+      expect(() => assertPackageSizeBudgets(PACKAGE_SIZE_BUDGETS)).not.toThrow()
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('vendored supply-chain pins', () => {
+  test('every non-registry dependency in the lockfile matches its recorded pin exactly', () => {
+    const lockfile = JSON.parse(readFileSync('package-lock.json', 'utf8'))
+    const pins = JSON.parse(readFileSync('scripts/release/dependency-pins.json', 'utf8')).packages
+    const nonRegistry = (Object.entries(lockfile.packages ?? {}) as Array<[string, { resolved?: string; integrity?: string }]>).filter(
+      ([, entry]) => typeof entry.resolved === 'string' && entry.resolved.length > 0 && !entry.resolved.startsWith('https://registry.npmjs.org'),
+    )
+
+    // The lockfile sha512 hashes are the supply-chain integrity boundary for
+    // the vendored Prime Agent tarballs. A regenerated lockfile silently
+    // re-anchors them to whatever bytes are present; this pin file makes that
+    // a deliberate, reviewed change. To upgrade Prime Agent on purpose:
+    // verify the new tarballs, replace them in vendor/, update the lockfile,
+    // then mirror the new resolved/integrity values here in the same commit.
+    expect(nonRegistry.length).toBeGreaterThan(0)
+    for (const [name, entry] of nonRegistry) {
+      const pin = pins[name]
+      expect(pin, `unpinned non-registry dependency: ${name}`).toBeDefined()
+      expect(entry.resolved, `resolved location drifted for ${name}`).toBe(pin.resolved)
+      expect(entry.integrity, `integrity drifted for ${name}`).toBe(pin.integrity)
+      expect(entry.integrity, `weak integrity algorithm for ${name}`).toMatch(/^sha512-/)
+    }
+    for (const name of Object.keys(pins)) {
+      expect(
+        nonRegistry.some(([lockName]) => lockName === name),
+        `stale pin for removed dependency: ${name}`,
+      ).toBe(true)
+    }
+  })
+
+  test('the vendored tarballs on disk hash to their pinned integrity', () => {
+    const pins = JSON.parse(readFileSync('scripts/release/dependency-pins.json', 'utf8')).packages as Record<string, { resolved: string; integrity: string }>
+    const vendored = [
+      ...new Set(
+        Object.values(pins)
+          .filter((pin) => pin.resolved.startsWith('file:vendor/'))
+          .map((pin) => ({
+            path: pin.resolved.slice('file:'.length),
+            integrity: pin.integrity,
+          }))
+          .map((entry) => JSON.stringify(entry)),
+      ),
+    ].map((entry) => JSON.parse(entry) as { path: string; integrity: string })
+
+    expect(vendored.length).toBeGreaterThan(0)
+    for (const { path, integrity } of vendored) {
+      const digest = `sha512-${createHash('sha512').update(readFileSync(path)).digest('base64')}`
+      expect(digest, `vendored tarball bytes drifted from pin: ${path}`).toBe(integrity)
+    }
+  })
+
+  test('every vendored tarball is pinned and reference artifacts hash to their pins', () => {
+    const manifest = JSON.parse(readFileSync('scripts/release/dependency-pins.json', 'utf8'))
+    const reference = manifest['reference-artifacts'] as Record<string, { path: string; integrity: string }> | undefined
+    // Reference artifacts are not installed (no lockfile entry binds them), but
+    // they document the upstream base releases the patched tarballs derive
+    // from; unpinned bytes in vendor/ would drift silently.
+    expect(reference, 'reference-artifacts section missing from dependency-pins.json').toBeDefined()
+
+    const pinned = new Set<string>()
+    for (const pin of Object.values(manifest.packages as Record<string, { resolved: string }>)) {
+      if (pin.resolved.startsWith('file:vendor/')) pinned.add(pin.resolved.slice('file:'.length))
+    }
+    pinned.add(readPinnedNpmArtifact().relativePath)
+    for (const entry of Object.values(reference ?? {})) pinned.add(entry.path)
+
+    for (const [name, entry] of Object.entries(reference ?? {})) {
+      expect(entry.path, `reference artifact outside vendor/: ${name}`).toMatch(/^vendor\/[^/]+\.tgz$/)
+      expect(entry.integrity, `weak integrity algorithm for ${name}`).toMatch(/^sha512-/)
+      const digest = `sha512-${createHash('sha512').update(readFileSync(entry.path)).digest('base64')}`
+      expect(digest, `reference tarball bytes drifted from pin: ${entry.path}`).toBe(entry.integrity)
+    }
+
+    const unpinned = readdirSync('vendor').filter((name) => name.endsWith('.tgz') && !pinned.has(`vendor/${name}`))
+    expect(unpinned, 'vendored tarballs without any pin').toEqual([])
+  })
+
+  test('the checked-in npm bootstrap archive matches its strict artifact pin and provenance record', () => {
+    const pinManifest = JSON.parse(readFileSync('scripts/release/dependency-pins.json', 'utf8'))
+    const artifact = readPinnedNpmArtifact()
+    expect(pinManifest.artifacts).toEqual({
+      npm: {
+        version: '12.0.2',
+        path: 'vendor/npm-12.0.2.tgz',
+        source: 'https://registry.npmjs.org/npm/-/npm-12.0.2.tgz',
+        integrity: PINNED_NPM_INTEGRITY,
+        size: artifact.size,
+        license: 'Artistic-2.0',
+      },
+    })
+    expect(verifyPinnedNpmArtifact(artifact)).toEqual(artifact)
+    expect(readdirSync('vendor').filter((name) => /^npm-\d+\.\d+\.\d+\.tgz$/.test(name))).toEqual(['npm-12.0.2.tgz'])
+
+    const provenance = readFileSync('vendor/npm-12.0.2.md', 'utf8')
+    expect(provenance).toContain('https://registry.npmjs.org/npm/-/npm-12.0.2.tgz')
+    expect(provenance).toContain(PINNED_NPM_INTEGRITY)
+    expect(provenance).toContain('Artistic-2.0')
+    expect(provenance).toContain('unmodified')
+    expect(provenance).toMatch(/before\s+invoking npm's installer/)
+
+    const security = readFileSync('docs/安全模型.md', 'utf8')
+    expect(security).toContain("Before invoking npm's installer")
+    expect(security).not.toContain('Before invoking npm,')
+    expect(security).not.toContain('lifecycle scripts, extensions')
+  })
+
+  test('keeps the bootstrap archive out of the packaged desktop application', () => {
+    const build = JSON.parse(readFileSync('package.json', 'utf8')).build
+    const packagedInputs = JSON.stringify({
+      files: build.files,
+      extraResources: build.extraResources,
+      mac: build.mac?.files,
+      linux: build.linux?.files,
+      win: build.win?.files,
+    })
+    expect(packagedInputs).not.toContain('vendor/npm-')
+    expect(packagedInputs).not.toContain('vendor/**')
+    expect(build.files).toEqual([
+      'out/**/*',
+      'package.json',
+      '!**/node_modules/prime-agent/docs/**',
+      '!**/node_modules/prime-agent/dist/bundle/**',
+      '!**/node_modules/prime-agent/dist/modes/**',
+      '!**/node_modules/prime-agent/**/*.map',
+      '!**/node_modules/prime-agent/**/*.d.ts',
+      '!**/node_modules/@earendil-works/pi-tui/**',
+      '!**/node_modules/koffi/**',
+    ])
+  })
+})
+
+const AUDIT_EXCEPTION_REASON = 'no patched release exists upstream yet'
+const auditReport = (advisories: Array<{ package: string; advisory: string; severity: string }>) => ({
+  vulnerabilities: Object.fromEntries(
+    advisories.map((entry) => [
+      entry.package,
+      {
+        name: entry.package,
+        severity: entry.severity,
+        via: [
+          {
+            source: 1,
+            name: entry.package,
+            title: `${entry.package} flaw`,
+            url: `https://github.com/advisories/${entry.advisory}`,
+            severity: entry.severity,
+          },
+        ],
+      },
+    ]),
+  ),
+})
+
+describe('production dependency audit', () => {
+  const advisory = {
+    package: 'extract-zip',
+    advisory: 'GHSA-jmr9-qjv8-65gv',
+    severity: 'high',
+  }
+  const exception = parseAuditExceptions(
+    JSON.stringify({
+      exceptions: [{ ...advisory, expires: '2099-01-01', reason: AUDIT_EXCEPTION_REASON }],
+    }),
+  )
+  const now = Date.parse('2026-08-14T00:00:00Z')
+
+  test('reports only high and critical advisories, ignoring back-references to other packages', () => {
+    const report = {
+      vulnerabilities: {
+        ...auditReport([
+          advisory,
+          {
+            package: 'left-pad',
+            advisory: 'GHSA-2222-2222-2222',
+            severity: 'moderate',
+          },
+        ]).vulnerabilities,
+        'prime-agent': {
+          name: 'prime-agent',
+          severity: 'high',
+          via: ['extract-zip'],
+        },
+      },
+    }
+
+    expect(collectAuditAdvisories(report)).toEqual([
+      {
+        advisory: advisory.advisory,
+        package: 'extract-zip',
+        severity: 'high',
+        title: 'extract-zip flaw',
+      },
+    ])
+  })
+
+  test('fails closed on malformed vulnerability entries and via arrays', () => {
+    expect(() => collectAuditAdvisories({ vulnerabilities: { broken: null } })).toThrow(/broken/)
+    expect(() =>
+      collectAuditAdvisories({
+        vulnerabilities: { broken: { name: 'broken', via: 'oops' } },
+      }),
+    ).toThrow(/via/)
+  })
+
+  test('fails closed on malformed via entries', () => {
+    expect(() =>
+      collectAuditAdvisories({
+        vulnerabilities: { broken: { name: 'broken', via: [42, null] } },
+      }),
+    ).toThrow(/via/)
+  })
+
+  test('fails closed when a via severity is missing or unknown', () => {
+    const missingSeverity = {
+      url: `https://github.com/advisories/${advisory.advisory}`,
+      title: 'missing severity',
+    }
+    expect(() =>
+      collectAuditAdvisories({
+        vulnerabilities: {
+          [advisory.package]: {
+            name: advisory.package,
+            via: [missingSeverity],
+          },
+        },
+      }),
+    ).toThrow(/severity/)
+    expect(() =>
+      collectAuditAdvisories({
+        vulnerabilities: {
+          [advisory.package]: {
+            name: advisory.package,
+            via: [{ ...missingSeverity, severity: 'urgent' }],
+          },
+        },
+      }),
+    ).toThrow(/severity/)
+  })
+
+  test('fails closed when a high or critical via has no parseable advisory ID', () => {
+    const via = {
+      name: advisory.package,
+      severity: 'critical',
+      title: 'unresolvable advisory',
+      url: 'not-an-advisory-url',
+    }
+
+    expect(() =>
+      collectAuditAdvisories({
+        vulnerabilities: {
+          [advisory.package]: { name: advisory.package, via: [via] },
+        },
+      }),
+    ).toThrow(/advisory ID/)
+  })
+
+  test('fails closed when a high or critical via has no package name', () => {
+    const via = {
+      severity: 'high',
+      title: 'unnamed advisory',
+      url: `https://github.com/advisories/${advisory.advisory}`,
+    }
+
+    expect(() => collectAuditAdvisories({ vulnerabilities: { unknown: { via: [via] } } })).toThrow(/package name/)
+  })
+
+  test('accepts a listed advisory while still failing on an unlisted one', () => {
+    const unlisted = {
+      package: 'tar-fs',
+      advisory: 'GHSA-3333-3333-3333',
+      severity: 'critical',
+    }
+    const evaluation = evaluateAuditReport(auditReport([advisory, unlisted]), exception, now)
+
+    expect(evaluation.accepted).toHaveLength(1)
+    expect(evaluation.unexpected).toMatchObject([{ advisory: unlisted.advisory, package: 'tar-fs' }])
+    expect(describeAuditEvaluation(evaluation)).toMatchObject({ ok: false })
+    expect(describeAuditEvaluation(evaluation).message).toContain(unlisted.advisory)
+  })
+
+  test('fails once an accepted advisory passes its expiry so it cannot become permanent', () => {
+    const expiring = parseAuditExceptions(
+      JSON.stringify({
+        exceptions: [
+          {
+            ...advisory,
+            expires: '2026-08-13',
+            reason: AUDIT_EXCEPTION_REASON,
+          },
+        ],
+      }),
+    )
+    const evaluation = evaluateAuditReport(auditReport([advisory]), expiring, now)
+    const described = describeAuditEvaluation(evaluation)
+
+    expect(evaluation.expired).toMatchObject([{ advisory: advisory.advisory }])
+    expect(described.ok).toBe(false)
+    expect(described.message).toContain('expired on 2026-08-13')
+  })
+
+  test('fails on a stale exception so a fixed advisory stops being suppressed', () => {
+    const evaluation = evaluateAuditReport({ vulnerabilities: {} }, exception, now)
+    const described = describeAuditEvaluation(evaluation)
+
+    expect(evaluation.stale).toHaveLength(1)
+    expect(described.ok).toBe(false)
+    expect(described.message).toContain('no longer matches any advisory')
+  })
+
+  test('passes with a clean report and names every accepted advisory in the summary', () => {
+    const evaluation = describeAuditEvaluation(evaluateAuditReport(auditReport([advisory]), exception, now))
+
+    expect(evaluation.ok).toBe(true)
+    expect(evaluation.message).toContain(`${advisory.advisory} in extract-zip until 2099-01-01`)
+  })
+
+  test('rejects an exception that lacks a reason or a parseable expiry', () => {
+    expect(() =>
+      parseAuditExceptions(
+        JSON.stringify({
+          exceptions: [{ ...advisory, expires: '2099-01-01', reason: 'nope' }],
+        }),
+      ),
+    ).toThrow(/reason/)
+    expect(() =>
+      parseAuditExceptions(
+        JSON.stringify({
+          exceptions: [{ ...advisory, expires: 'someday', reason: AUDIT_EXCEPTION_REASON }],
+        }),
+      ),
+    ).toThrow(/expires/)
+    expect(() =>
+      parseAuditExceptions(
+        JSON.stringify({
+          exceptions: [
+            {
+              ...advisory,
+              advisory: 'CVE-2024-1',
+              expires: '2099-01-01',
+              reason: AUDIT_EXCEPTION_REASON,
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/GHSA/)
+  })
+
+  test('the checked-in exception list is valid and every entry still expires in the future', () => {
+    const exceptions = readAuditExceptions()
+
+    expect(exceptions).toEqual([])
+    for (const entry of exceptions) {
+      expect(entry.expiresAt, `audit exception for ${entry.advisory} has expired; re-check for a fix`).toBeGreaterThan(Date.now())
+    }
+  })
+})
+
+describe('packaged extension resources', () => {
+  function createFixture() {
+    const directory = mkdtempSync(join(tmpdir(), 'gooeypi-packaged-extensions-'))
+    const resources = join(directory, 'resources')
+    const extensions = join(resources, 'extensions')
+    mkdirSync(extensions, { recursive: true })
+    for (const filename of SHIPPED_EXTENSION_FILENAMES) writeFileSync(join(extensions, filename), 'fixture')
+    return { directory, resources, extensions }
+  }
+
+  test('accepts exactly the manifest extension files and rejects missing, extra, and non-file entries', () => {
+    const exact = createFixture()
+    const missing = createFixture()
+    const extra = createFixture()
+    const nonFile = createFixture()
+    try {
+      expect(() => assertPackagedExtensions(exact.resources)).not.toThrow()
+      rmSync(join(missing.extensions, SHIPPED_EXTENSION_FILENAMES[0]))
+      expect(() => assertPackagedExtensions(missing.resources)).toThrow(/missing:/)
+      writeFileSync(join(extra.extensions, 'unexpected.ts'), 'fixture')
+      expect(() => assertPackagedExtensions(extra.resources)).toThrow(/extra:/)
+      mkdirSync(join(nonFile.extensions, 'nested'))
+      expect(() => assertPackagedExtensions(nonFile.resources)).toThrow(/non-file:/)
+    } finally {
+      for (const fixture of [exact, missing, extra, nonFile]) rmSync(fixture.directory, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('bundled runtime packaging target', () => {
+  test('uses the requested target rather than the build host architecture', () => {
+    expect(runtimeTarget(['--linux', '--arm64'], 'darwin', 'x64')).toMatchObject({ platform: 'linux', arch: 'arm64' })
+    expect(runtimeTarget(['--win', '--x64'], 'win32', 'arm64')).toMatchObject({
+      platform: 'win32',
+      arch: 'x64',
+    })
+  })
+  test('rejects ambiguous multi-target requests before preparing any runtime', () => {
+    expect(() => runtimeTarget(['--win', '--mac'])).toThrow('one platform')
+    expect(() => runtimeTarget(['--arm64', '--x64'])).toThrow('one platform')
+  })
+})

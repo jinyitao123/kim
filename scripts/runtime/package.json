@@ -1,0 +1,27 @@
+{
+  "name": "weave-packaged-cli-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinned production closure for the application-owned CLI runtime",
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.84.3",
+    "prime-agent": "file:vendor/prime-agent-0.7.0-gooeypi.2.tgz",
+    "npm": "file:vendor/npm-12.0.2.tgz"
+  },
+  "overrides": {
+    "prime-agent": {
+      "@earendil-works/pi-agent-core": "file:vendor/prime-agent-core-0.7.0.tgz",
+      "@earendil-works/pi-ai": "file:vendor/prime-agent-ai-0.7.0-gooeypi.1.tgz",
+      "@earendil-works/pi-tui": "file:vendor/prime-agent-tui-0.7.0.tgz"
+    },
+    "basic-ftp": "6.2.1",
+    "extract-zip": "npm:@electron-internal/extract-zip@1.0.5",
+    "@earendil-works/pi-coding-agent": {
+      "@earendil-works/pi-agent-core": "0.84.3",
+      "@earendil-works/pi-ai": "0.84.3",
+      "@earendil-works/pi-client": "0.84.3",
+      "@earendil-works/pi-protocol": "0.84.3",
+      "@earendil-works/pi-tui": "0.84.3"
+    }
+  }
+}

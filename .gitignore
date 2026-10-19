@@ -1,0 +1,22 @@
+node_modules
+/out/
+/dist/
+/release/
+/coverage/
+playwright-report
+test-results
+.DS_Store
+.env
+.env.*
+.prime-gui.log
+.superdesign/
+.claude/worktrees/
+__pycache__/
+.claude/settings.local.json
+
+# Carried over from the former monorepo root
+.build/
+*.log
+.claude/
+*.local.md
+.brand-media/

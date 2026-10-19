@@ -1,0 +1,9 @@
+# Vendor patches target LF files from the reviewed npm tarballs.
+vendor/patches/*.patch text eol=lf
+
+# The release formatter requires LF on every native runner.
+scripts/release/** text eol=lf
+electron.vite.config.ts text eol=lf
+vitest.config.ts text eol=lf
+playwright.config.ts text eol=lf
+tests/release-scripts.test.ts text eol=lf
