@@ -99,7 +99,7 @@ export function SettingsPage({ settings, meta, providerCatalog, voice, onClose, 
   return (
     <div className="settings-page">
       <nav className="settings-nav" aria-label={t('settings.sections')}>
-        <button type="button" className="settings-nav__close" onClick={onClose}><ArrowLeft size={14} /><span>Back to session</span></button>
+        <button type="button" className="settings-nav__close" onClick={onClose}><ArrowLeft size={14} /><span>返回对话</span></button>
         {sections.map((item) => {
           const Icon = item.icon
           return (
@@ -112,16 +112,16 @@ export function SettingsPage({ settings, meta, providerCatalog, voice, onClose, 
       <div className="settings-content scroll-area"><div className="settings-content__inner">{content}</div></div>
       {confirmReset ? (
         <Modal
-          title="Clear browser data?"
+          title="清除浏览器数据？"
           onClose={() => { if (!resetting) setConfirmReset(false) }}
           footer={(
             <>
-              <button type="button" className="button" disabled={resetting} onClick={() => setConfirmReset(false)}>Cancel</button>
-              <button type="button" className="button button--danger" disabled={resetting} onClick={() => { void resetBrowser() }}>{resetting ? 'Clearing…' : 'Clear browsing data'}</button>
+              <button type="button" className="button" disabled={resetting} onClick={() => setConfirmReset(false)}>取消</button>
+              <button type="button" className="button button--danger" disabled={resetting} onClick={() => { void resetBrowser() }}>{resetting ? '正在清除…' : '清除浏览数据'}</button>
             </>
           )}
         >
-          <p>This signs you out of websites opened in Kim and removes history, cache, cookies, and saved permissions. This cannot be undone.</p>
+          <p>这会退出在 Kim 中打开过的网站，并删除历史记录、缓存、Cookie 和已保存的权限。此操作无法撤销。</p>
           {resetError ? <p className="settings-error" role="alert">{resetError}</p> : null}
         </Modal>
       ) : null}

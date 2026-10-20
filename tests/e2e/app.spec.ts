@@ -1039,8 +1039,8 @@ test.describe('Prime Work desktop smoke', () => {
 
   test('uses the branch checkout picker after changing the global checkout style', async () => {
     await page.locator('.sidebar__footer button').filter({ hasText: 'Settings' }).click()
-    await page.getByRole('combobox', { name: 'Git checkout style' }).selectOption('branch')
-    await page.getByRole('button', { name: 'Back to session' }).click()
+    await page.getByRole('combobox', { name: 'Git 切换方式' }).selectOption('branch')
+    await page.getByRole('button', { name: '返回对话' }).click()
 
     await page.getByRole('button', { name: /^Checkout:/ }).click()
     const branchMenu = page.getByRole('menu', { name: 'Git branches' })
@@ -1055,7 +1055,7 @@ test.describe('Prime Work desktop smoke', () => {
     }
 
     await openSettings()
-    await page.getByRole('button', { name: 'Back to session' }).click()
+    await page.getByRole('button', { name: '返回对话' }).click()
     await expect(page.getByRole('combobox', { name: 'Message Prime' })).toBeVisible()
 
     await openSettings()
@@ -1172,7 +1172,7 @@ test.describe('Prime Work desktop smoke', () => {
     await page.locator('.sidebar__footer button').filter({ hasText: 'Settings' }).click()
     await page.getByRole('button', { name: 'Harness', exact: true }).click()
 
-    const refresh = page.getByRole('button', { name: 'Refresh harnesses' })
+    const refresh = page.getByRole('button', { name: '重新检测内核' })
     await expect(refresh).toBeVisible()
     await refresh.click()
     await expect(refresh).toBeEnabled()
@@ -1201,7 +1201,7 @@ test.describe('Prime Work desktop smoke', () => {
     await page.locator('.sidebar__footer button').filter({ hasText: 'Settings' }).click()
     await page.getByRole('button', { name: 'Harness', exact: true }).click()
     await expect(page.getByText('Pi not detected', { exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'Refresh harnesses' }).click()
+    await page.getByRole('button', { name: '重新检测内核' }).click()
     await expect(page.getByText('Pi is ready', { exact: true })).toBeVisible()
 
     await page.getByRole('button', { name: 'Kim — Prime Work' }).click()
@@ -1218,7 +1218,7 @@ test.describe('Prime Work desktop smoke', () => {
     await expect(page.getByText('Install one to get started.', { exact: false })).toBeVisible()
     await page.getByRole('button', { name: 'Take me there' }).click()
     await expect(page.getByRole('heading', { name: 'Harness', exact: true, level: 1 })).toBeVisible()
-    const refresh = page.getByRole('button', { name: 'Refresh harnesses' })
+    const refresh = page.getByRole('button', { name: '重新检测内核' })
     await expect(refresh).toBeVisible()
     await expect(page.getByLabel('Pi executable override')).toBeVisible()
     await refresh.click()
@@ -1678,7 +1678,7 @@ test.describe('Prime Work desktop smoke', () => {
         const browserToggle = page.getByRole('button', { name: 'Disable Browser' })
         await browserToggle.click()
         const browserConfirmation = page.getByRole('dialog', { name: 'Disable Browser?' })
-        await browserConfirmation.getByRole('button', { name: 'Cancel' }).click()
+        await browserConfirmation.getByRole('button', { name: '取消' }).click()
         await expect(page.getByRole('button', { name: 'Disable Browser' })).toHaveAttribute('aria-pressed', 'true')
         const computerUseToggle = page.getByRole('button', { name: 'Enable Computer Use | TryCUA' })
         await expect(computerUseToggle).toHaveAttribute('aria-pressed', 'false')
@@ -1694,7 +1694,7 @@ test.describe('Prime Work desktop smoke', () => {
         const addMcp = addDialog.getByRole('button', { name: /Add MCP/ })
         await expect(addMcp).toBeDisabled()
         await expect(addMcp).toContainText('Prime MCP setup is managed outside Kim')
-        await expect(addDialog.getByText('Server URL', { exact: true })).toHaveCount(0)
+        await expect(addDialog.getByText('服务地址', { exact: true })).toHaveCount(0)
         await expect(addDialog.getByText('Authentication', { exact: true })).toHaveCount(0)
         await addDialog.getByRole('button', { name: 'Close' }).click()
       }
@@ -1702,14 +1702,14 @@ test.describe('Prime Work desktop smoke', () => {
     await page.locator('.sidebar__footer button').filter({ hasText: 'Settings' }).click()
     await expect(page.getByRole('heading', { name: 'General' })).toBeVisible()
     await page.getByRole('button', { name: 'Providers', exact: true }).click()
-    await expect(page.getByLabel('Search providers')).toBeVisible()
+    await expect(page.getByLabel('搜索服务商')).toBeVisible()
     await expect(page.locator('.provider-row')).not.toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Disable all', exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'Disable all', exact: true }).click()
-    await expect(page.getByRole('button', { name: 'Enable all', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: '全部停用', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: '全部停用', exact: true }).click()
+    await expect(page.getByRole('button', { name: '全部启用', exact: true })).toBeVisible()
     await expect(page.locator('.provider-row input[type="checkbox"]:checked')).toHaveCount(0)
     await page.getByRole('tab', { name: /Models/ }).click()
-    await expect(page.getByLabel('Search models')).toBeVisible()
+    await expect(page.getByLabel('搜索模型')).toBeVisible()
     await expect(page.locator('.provider-model-row')).not.toHaveCount(0)
     await page.getByRole('button', { name: 'Harness', exact: true }).click()
     await expect(page.getByRole('checkbox', { name: /Show reasoning summaries/ })).toBeChecked()
@@ -1846,7 +1846,7 @@ test.describe('Prime Work desktop smoke', () => {
     await page.getByRole('button', { name: 'Browser', exact: true }).first().click()
     const trigger = page.getByRole('button', { name: 'Clear data' })
     await trigger.click()
-    const dialog = page.getByRole('dialog', { name: 'Clear browser data?' })
+    const dialog = page.getByRole('dialog', { name: '清除浏览器数据？' })
     await expect(dialog).toBeVisible()
     await expect(page.getByRole('button', { name: 'Close' })).toBeFocused()
     await expect(page.locator('.app-shell')).toHaveAttribute('inert')
@@ -2009,7 +2009,7 @@ test.describe('Prime Work desktop smoke', () => {
   test('preserves a rejected shell draft while rolling back the committed setting', async () => {
     await page.keyboard.press('Meta+,')
     await page.getByRole('button', { name: 'Terminal', exact: true }).first().click()
-    const shell = page.getByLabel('Shell executable')
+    const shell = page.getByLabel('Shell 可执行文件')
     const rejectedDraft = '/definitely/not-an-executable'
     await expect(shell).toHaveValue('/bin/zsh')
     await shell.fill(rejectedDraft)
@@ -2174,7 +2174,7 @@ test.describe('Prime Work desktop smoke', () => {
     await expect(changesCard).toHaveCount(0)
 
     await page.keyboard.press('Meta+,')
-    const popupToggle = page.getByRole('checkbox', { name: 'Show file changes popup' })
+    const popupToggle = page.getByRole('checkbox', { name: '显示文件改动卡片' })
     await expect(popupToggle).toBeChecked()
     await popupToggle.focus()
     await popupToggle.press('Space')
@@ -2489,7 +2489,7 @@ test.describe('Prime Work desktop smoke', () => {
     const runningPrompt = {
       message: 'Close Kim while an agent is running?',
       detail: 'An agent run is still in progress and will be stopped.',
-      buttons: ['Cancel', 'Close Kim'],
+      buttons: ['取消', 'Close Kim'],
     }
     await app!.evaluate(({ BrowserWindow }) => { BrowserWindow.getAllWindows()[0]?.close() })
     await expect.poll(() => closePrompts(app!)).toEqual([runningPrompt])
@@ -2553,7 +2553,7 @@ test.describe('Prime Work desktop smoke', () => {
     const runningPrompt = {
       message: 'Close Kim while an agent is running?',
       detail: 'An agent run is still in progress and will be stopped.',
-      buttons: ['Cancel', 'Close Kim'],
+      buttons: ['取消', 'Close Kim'],
     }
     await app!.evaluate(() => {
       const quit = (globalThis as { __trayQuit?: () => void }).__trayQuit

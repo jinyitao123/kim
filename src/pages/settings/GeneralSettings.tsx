@@ -5,39 +5,39 @@ import { SettingsToggle } from './SettingsToggle'
 export function GeneralSettings({ settings, onUpdate, platform }: SettingsSectionProps & { platform: NodeJS.Platform }) {
   return (
     <>
-      <header><h1>General</h1><p>Choose how Kim behaves across projects.</p></header>
+      <header><h1>常规</h1><p>设置 Kim 在各个项目中的行为。</p></header>
       <section className="settings-group">
-        <h2>Window</h2>
-        <SettingsToggle checked={settings.sidebarOpen} onChange={(sidebarOpen) => { void onUpdate({ sidebarOpen }) }} label="Show project sidebar" description="Keep projects and sessions visible when the app opens." />
-        <SettingsToggle checked={settings.inspectorOpen} onChange={(inspectorOpen) => { void onUpdate({ inspectorOpen }) }} label="Open session inspector" description="Show the summary pane for newly opened sessions." />
-        <SettingsToggle checked={settings.showFileChangesPopup} onChange={(showFileChangesPopup) => { void onUpdate({ showFileChangesPopup }) }} label="Show file changes popup" description="Show the review card above the composer when the workspace has uncommitted changes." />
+        <h2>窗口</h2>
+        <SettingsToggle checked={settings.sidebarOpen} onChange={(sidebarOpen) => { void onUpdate({ sidebarOpen }) }} label="显示项目侧栏" description="打开应用时显示项目和对话列表。" />
+        <SettingsToggle checked={settings.inspectorOpen} onChange={(inspectorOpen) => { void onUpdate({ inspectorOpen }) }} label="打开右侧面板" description="新打开的对话显示摘要面板。" />
+        <SettingsToggle checked={settings.showFileChangesPopup} onChange={(showFileChangesPopup) => { void onUpdate({ showFileChangesPopup }) }} label="显示文件改动卡片" description="工作区有未提交的改动时，在输入框上方显示改动卡片。" />
       </section>
       {platform === 'darwin' ? (
         <section className="settings-group">
-          <h2>Startup &amp; background</h2>
-          <SettingsToggle checked={settings.keepRunningInBackground} onChange={(keepRunningInBackground) => { void onUpdate({ keepRunningInBackground }) }} label="Keep running after closing the app window" description="Keep scheduled work running from the menu bar until you quit the app." />
-          <SettingsToggle checked={settings.launchAtLogin} onChange={(launchAtLogin) => { void onUpdate({ launchAtLogin }) }} label="Launch at login" description="Start the app in the background when you log in to this Mac." />
+          <h2>启动与后台</h2>
+          <SettingsToggle checked={settings.keepRunningInBackground} onChange={(keepRunningInBackground) => { void onUpdate({ keepRunningInBackground }) }} label="关闭窗口后继续运行" description="在菜单栏继续运行定时任务，直到退出应用。" />
+          <SettingsToggle checked={settings.launchAtLogin} onChange={(launchAtLogin) => { void onUpdate({ launchAtLogin }) }} label="登录时启动" description="登录这台 Mac 时在后台启动应用。" />
         </section>
       ) : null}
       <section className="settings-group">
-        <h2>Session defaults</h2>
+        <h2>对话默认设置</h2>
         <label className="settings-row">
-          <span><strong>Git checkout style</strong><small>Worktrees use separate folders for safe parallel tasks. Branches reuse the same folder and require a clean, idle project.</small></span>
+          <span><strong>Git 切换方式</strong><small>工作树为每个任务使用独立文件夹，适合并行工作；分支复用同一个文件夹，要求项目没有未提交改动且空闲。</small></span>
           <select value={settings.checkoutStrategy} onChange={(event) => {
             const checkoutStrategy = event.target.value
             if (checkoutStrategy === 'worktree' || checkoutStrategy === 'branch') void onUpdate({ checkoutStrategy })
           }}>
-            <option value="worktree">Worktrees</option>
-            <option value="branch">Branches</option>
+            <option value="worktree">工作树</option>
+            <option value="branch">分支</option>
           </select>
         </label>
         <label className="settings-row">
-          <span><strong>Default inspector tab</strong><small>The first detail surface shown in a session.</small></span>
+          <span><strong>默认面板标签</strong><small>打开对话时右侧面板默认显示的内容。</small></span>
           <select value={settings.defaultInspectorTab} onChange={(event) => { void onUpdate({ defaultInspectorTab: event.target.value as AppSettings['defaultInspectorTab'] }) }}>
-            <option value="summary">Summary</option>
-            <option value="changes">Changes</option>
-            <option value="browser">Browser</option>
-            <option value="files">Files</option>
+            <option value="summary">摘要</option>
+            <option value="changes">改动</option>
+            <option value="browser">浏览器</option>
+            <option value="files">文件</option>
           </select>
         </label>
       </section>

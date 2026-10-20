@@ -670,7 +670,7 @@ describe('provider catalog per harness', () => {
   const piCatalog: PrimeModelCatalog = {
     primeVersion: '0.84.1', refreshedAt: '2026-08-06T00:00:00.000Z',
     models: [{ key: 'openai-codex/gpt-5.6-luna', provider: 'openai-codex', id: 'gpt-5.6-luna', name: 'Luna GPT-5.6', reasoning: true, input: ['text', 'image'], contextWindow: 400_000, maxTokens: 128_000, availableThinkingLevels: ['low', 'medium', 'high'], fastModeSupported: false, available: true }],
-    providers: [{ id: 'openai-codex', name: 'OpenAI Codex', authMethod: 'external', configured: true, authLabel: 'Credentials managed by the pi CLI', modelCount: 1, availableModelCount: 1, enabled: true }],
+    providers: [{ id: 'openai-codex', name: 'OpenAI Codex', authMethod: 'external', configured: true, authLabel: '凭据由 pi CLI 管理', modelCount: 1, availableModelCount: 1, enabled: true }],
   }
 
   it('waits for persisted settings before loading a provider catalog', async () => {
@@ -1000,15 +1000,15 @@ describe('harness settings surfaces', () => {
     )
 
     await act(async () => { root.render(renderSettings('general')) })
-    expect(container.querySelector('h1')?.textContent).toBe('General')
+    expect(container.querySelector('h1')?.textContent).toBe('常规')
     await act(async () => { root.render(renderSettings('agent')); await Promise.resolve() })
-    expect(container.querySelector('h1')?.textContent).toBe('Harness')
+    expect(container.querySelector('h1')?.textContent).toBe('运行环境')
     expect(container.querySelector('.settings-nav .is-active')?.textContent).toContain('运行环境')
 
     await click([...container.querySelectorAll<HTMLButtonElement>('.settings-nav button')].find((button) => button.textContent?.includes('常规'))!)
-    expect(container.querySelector('h1')?.textContent).toBe('General')
+    expect(container.querySelector('h1')?.textContent).toBe('常规')
     await act(async () => { root.render(renderSettings('agent', 1)); await Promise.resolve() })
-    expect(container.querySelector('h1')?.textContent).toBe('Harness')
+    expect(container.querySelector('h1')?.textContent).toBe('运行环境')
   })
 
   it('offers only Prime and Pi as harness settings and omits retired OMP controls', async () => {
@@ -1016,13 +1016,13 @@ describe('harness settings surfaces', () => {
     const onRefreshHarnesses = vi.fn(async () => undefined)
     const primeSettings: AppSettings = { ...DEFAULT_SETTINGS, activeHarness: 'prime' }
     await act(async () => { root.render(<AgentSettings settings={primeSettings} meta={meta} onUpdate={onUpdate} onRefreshHarnesses={onRefreshHarnesses} />) })
-    expect(container.textContent).toContain('Default harness')
+    expect(container.textContent).toContain('默认内核')
     expect(container.textContent).not.toContain('OMP')
     expect(container.textContent).toContain('Prime Agent is ready')
     expect(container.textContent).toContain('Pi not detected')
     expect([...container.querySelectorAll<HTMLSelectElement>('select')[0].options].map((option) => option.textContent)).toEqual(['Prime Work'])
 
-    const refresh = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.includes('Refresh harnesses'))!
+    const refresh = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.includes('重新检测内核'))!
     await click(refresh)
     expect(onRefreshHarnesses).toHaveBeenCalledTimes(1)
 
@@ -1074,14 +1074,14 @@ describe('harness settings surfaces', () => {
       root.render(<ProviderSettings harness="pi" catalog={catalog} onRefresh={noopAsync} onSaveApiKey={noopAsync} onLogout={noopAsync} onSetEnabled={onSetEnabled} onSetAllEnabled={noopAsync} onSetAllDisabled={noopAsync} onSetModelEnabled={noopAsync} onStartOAuth={noopAsync} onOpenDocs={() => undefined} />)
     })
 
-    expect(container.textContent).toContain('Pi catalogue')
-    expect(container.textContent).toContain('Credentials managed by the pi CLI')
+    expect(container.textContent).toContain('Pi 目录')
+    expect(container.textContent).toContain('凭据由 pi CLI 管理')
     const toggles = [...container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
     expect(toggles).toHaveLength(2)
     const buttonLabels = [...container.querySelectorAll('button')].map((button) => button.textContent ?? '')
-    expect(buttonLabels.some((text) => text.includes('Hide all'))).toBe(true)
-    expect(buttonLabels.some((text) => text.includes('Credential setup'))).toBe(true)
-    for (const label of ['Connect', 'Reconnect', 'Add key', 'Replace key', 'Disable all', 'Enable all']) {
+    expect(buttonLabels.some((text) => text.includes('全部隐藏'))).toBe(true)
+    expect(buttonLabels.some((text) => text.includes('凭据设置'))).toBe(true)
+    for (const label of ['连接', '重新连接', '添加密钥', '更换密钥', '全部停用', '全部启用']) {
       expect(buttonLabels.some((text) => text.includes(label))).toBe(false)
     }
 

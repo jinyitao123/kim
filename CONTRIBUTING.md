@@ -21,14 +21,14 @@ that a build is ready for public distribution; `npm run package:mac` is reserved
 for maintainers with the release credentials.
 
 As an optional development convenience, use a separate app identity and
-Electron data directory when keeping a local package alongside GooeyPi:
+Electron data directory when keeping a local package alongside Kim:
 
 ```bash
 npm run build
 npx electron-builder --mac dir --arm64 --publish never \
   --config.mac.identity=null \
   --config.mac.notarize=false \
-  --config.productName="GooeyPi Dev" \
+  --config.productName="Kim Dev" \
   --config.appId=app.gooeypi.desktop.localdev \
   --config.extraMetadata.name=gooeypi-local-dev \
   --config.directories.output=release/local-dev

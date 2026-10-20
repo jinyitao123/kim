@@ -30,22 +30,22 @@ export function AgentSettings({ settings, meta, onUpdate, onRefreshHarnesses }: 
   }
   return (
     <>
-      <header><h1>Harness</h1><p>Runtime discovery, model providers, and workspace permissions.</p></header>
+      <header><h1>运行环境</h1><p>内核检测、模型服务商和工作区权限。</p></header>
       <section className="settings-group">
-        <h2>Harness</h2>
+        <h2>运行环境</h2>
         <label className="settings-row">
-          <span><strong>Default harness</strong><small>The harness opened by default; mirrors the current choice in the Harness menu.</small></span>
+          <span><strong>默认内核</strong><small>默认打开的内核，与左上角内核菜单的当前选择一致。</small></span>
           <select value={detectedHarnesses.includes(activeHarness) ? activeHarness : ''} disabled={!detectedHarnesses.length} onChange={(event) => { void onUpdate({ activeHarness: event.target.value as HarnessId }) }}>
-            {!detectedHarnesses.length ? <option value="">No harness detected</option> : null}
+            {!detectedHarnesses.length ? <option value="">没有检测到内核</option> : null}
             {detectedHarnesses.map((harness) => <option key={harness} value={harness}>{HARNESS_PRODUCT_NAMES[harness]}</option>)}
           </select>
         </label>
       </section>
       <section className="settings-group">
         <div className="settings-group__heading">
-          <h2>Runtime</h2>
+          <h2>运行环境检测</h2>
           <button type="button" className="button button--compact" disabled={refreshing} onClick={() => { void refreshHarnesses() }}>
-            <RefreshCw className={refreshing ? 'spin' : ''} size={13} />{refreshing ? 'Refreshing…' : 'Refresh harnesses'}
+            <RefreshCw className={refreshing ? 'spin' : ''} size={13} />{refreshing ? '正在检测…' : '重新检测内核'}
           </button>
         </div>
         {refreshError ? <p className="settings-error" role="alert">{refreshError}</p> : null}
@@ -57,18 +57,18 @@ export function AgentSettings({ settings, meta, onUpdate, onRefreshHarnesses }: 
               <span className={status?.path ? 'is-online' : ''}><Bot size={17} /></span>
               <div>
                 <strong>{status?.path ? `${name} is ready` : `${name} not detected`}</strong>
-                <small title={status?.problem ? `${status.problem.path}: ${status.problem.reason}` : undefined}>{status?.path ?? (status?.problem ? `${status.problem.path}: ${status.problem.reason}` : `Install ${name}, then refresh harnesses.`)}</small>
+                <small title={status?.problem ? `${status.problem.path}: ${status.problem.reason}` : undefined}>{status?.path ?? (status?.problem ? `${status.problem.path}: ${status.problem.reason}` : `安装 ${name} 后重新检测内核。`)}</small>
               </div>
               {status?.version ? <code>v{status.version}</code> : null}
             </div>
           )
         })}
-        <p className="settings-group__description">Discovery checks a saved override first, then the harness environment variable, bundled files, PATH, and standard install directories. Refreshing updates future sessions without restarting Kim.</p>
+        <p className="settings-group__description">检测顺序：已保存的路径、内核的环境变量、随应用附带的文件、PATH 和常见安装目录。重新检测只影响之后的对话，不需要重启 Kim。</p>
         {HARNESS_IDS.map((harness) => <DraftSettingField
           key={harness}
           id={`runtime-path-${harness}`}
           label={`${HARNESS_AGENT_NAMES[harness]} executable override`}
-          description="Optional absolute path. Leave blank to keep automatic discovery."
+          description="可选的绝对路径；留空则自动检测。"
           committedValue={settings.runtimePaths[harness]}
           validate={(value) => runtimePathValidation(value.trim(), harness)}
           normalize={(value) => value.trim()}
@@ -79,24 +79,24 @@ export function AgentSettings({ settings, meta, onUpdate, onRefreshHarnesses }: 
         />)}
       </section>
       <section className="settings-group">
-        <h2>Transcript</h2>
-        <SettingsToggle checked={settings.showReasoningSummaries} onChange={(showReasoningSummaries) => { void onUpdate({ showReasoningSummaries }) }} label="Show reasoning summaries" description="Display reasoning summaries and traces while an agent works. Completed work stays collapsed." />
-        <SettingsToggle checked={settings.showToolCalls} onChange={(showToolCalls) => { void onUpdate({ showToolCalls }) }} label="Show tool calls" description="Display compact tool activity, arguments, and expandable results." />
+        <h2>对话显示</h2>
+        <SettingsToggle checked={settings.showReasoningSummaries} onChange={(showReasoningSummaries) => { void onUpdate({ showReasoningSummaries }) }} label="显示思考摘要" description="智能体工作时显示思考摘要和过程，完成后自动收起。" />
+        <SettingsToggle checked={settings.showToolCalls} onChange={(showToolCalls) => { void onUpdate({ showToolCalls }) }} label="显示工具调用" description="显示简洁的工具调用、参数和可展开的结果。" />
       </section>
       <section className="settings-group">
-        <h2>Message shortcuts</h2>
+        <h2>消息快捷键</h2>
         <label className="settings-row">
-          <span><strong>Primary Enter action while an agent is working</strong><small>{oppositeActionShortcut} always uses the opposite action. {newLineShortcut} adds a new line.</small></span>
-          <span className="shortcut-choice" role="radiogroup" aria-label="Primary Enter action">
-            {(['queue', 'steer'] as const).map((action) => <button key={action} type="button" className={`button button--compact ${settings.messageEnterAction === action ? 'is-active' : ''}`} role="radio" aria-checked={settings.messageEnterAction === action} onClick={() => { void onUpdate({ messageEnterAction: action }) }}>{action === 'queue' ? 'Queue' : 'Steer'}</button>)}
+          <span><strong>智能体工作时按 Enter 的作用</strong><small>{oppositeActionShortcut} always uses the opposite action. {newLineShortcut} adds a new line.</small></span>
+          <span className="shortcut-choice" role="radiogroup" aria-label="Enter 的作用">
+            {(['queue', 'steer'] as const).map((action) => <button key={action} type="button" className={`button button--compact ${settings.messageEnterAction === action ? 'is-active' : ''}`} role="radio" aria-checked={settings.messageEnterAction === action} onClick={() => { void onUpdate({ messageEnterAction: action }) }}>{action === 'queue' ? '排队' : '插话'}</button>)}
           </span>
         </label>
-        <div className="shortcut-row"><span><Keyboard size={14} />{settings.messageEnterAction === 'queue' ? 'Queue message' : 'Steer current turn'}</span><kbd>Enter</kbd></div>
-        <div className="shortcut-row"><span><Keyboard size={14} />{settings.messageEnterAction === 'queue' ? 'Steer current turn' : 'Queue message'}</span><kbd>{oppositeActionShortcut}</kbd></div>
+        <div className="shortcut-row"><span><Keyboard size={14} />{settings.messageEnterAction === 'queue' ? '排队发送' : '插话调整本轮'}</span><kbd>Enter</kbd></div>
+        <div className="shortcut-row"><span><Keyboard size={14} />{settings.messageEnterAction === 'queue' ? '插话调整本轮' : '排队发送'}</span><kbd>{oppositeActionShortcut}</kbd></div>
       </section>
       <section className="settings-group">
-        <h2>Permissions</h2>
-        <div className="info-row"><ShieldCheck size={15} /><div><strong>Workspace access</strong><small>The active agent only receives the project folders attached to a session.</small></div></div>
+        <h2>权限</h2>
+        <div className="info-row"><ShieldCheck size={15} /><div><strong>工作区访问</strong><small>智能体只能访问对话所关联的项目文件夹。</small></div></div>
       </section>
     </>
   )

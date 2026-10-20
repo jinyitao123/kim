@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are provided for the latest GooeyPi release published on GitHub Releases.
+Security fixes are provided for the latest Kim release published on GitHub Releases.
 
 | Version | Supported |
 | --- | --- |
@@ -15,7 +15,7 @@ When it is safe to do so, confirm whether the issue affects the latest release b
 
 Do not disclose suspected vulnerabilities in a public issue, discussion, or pull request.
 
-1. Open the [private vulnerability reporting form](https://github.com/jinyitao123/weave-workbench/security/advisories/new).
+1. Open the [private vulnerability reporting form](https://github.com/jinyitao123/kim/security/advisories/new).
 2. Complete and submit the private advisory form.
 3. Use the advisory for all sensitive follow-up information.
 

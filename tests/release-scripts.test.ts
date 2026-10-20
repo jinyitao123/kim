@@ -130,9 +130,7 @@ function writeMacReleaseFixture(directory: string, { omit }: { omit?: string } =
     if (name === omit) continue
     const artifactDirectory = join(inputDirectory, `artifact-${index}`)
     mkdirSync(artifactDirectory, { recursive: true })
-    const content = name.endsWith('.yml')
-      ? 'version: 0.2.0\nfiles:\n  - url: Kim-0.2.0-x64.zip\n    sha512: x64-digest\n    size: 42\npath: Kim-0.2.0-x64.zip\nsha512: x64-digest\n'
-      : `asset ${index}`
+    const content = name.endsWith('.yml') ? 'version: 0.2.0\nfiles:\n  - url: Kim-0.2.0-x64.zip\n    sha512: x64-digest\n    size: 42\npath: Kim-0.2.0-x64.zip\nsha512: x64-digest\n' : `asset ${index}`
     writeFileSync(join(artifactDirectory, name), content)
   }
   return { projectDirectory, inputDirectory }
@@ -673,10 +671,10 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
     expect(packageJson.packageManager).toBe(`npm@${toolchain.npm}`)
     expect(readFileSync('.nvmrc', 'utf8').trim()).toBe(toolchain.node)
     const readme = readFileSync('README.md', 'utf8')
-    expect(readme).toContain(`Node.js ${toolchain.node} or newer and npm ${toolchain.npm} or newer`)
+    expect(readme).toContain(`Node.js ${toolchain.node} 或更新版本、npm ${toolchain.npm} 或更新版本`)
     expect(readme).toContain('npm run toolchain:bootstrap')
-    expect(readme).toContain("invoked npm's configured global prefix")
-    expect(readme).toContain('install-time lifecycle scripts disabled')
+    expect(readme).toContain('当前 npm 配置的全局前缀')
+    expect(readme).toContain('禁用安装脚本')
     expect(readme).not.toContain('into the active Node installation')
     expect(readFileSync('scripts/release/package.mjs', 'utf8')).toContain('assertSupportedToolchain()')
     expect(readFileSync('scripts/release/preflight.mjs', 'utf8')).toContain('assertSupportedToolchain()')
@@ -788,7 +786,7 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
   }
 
   test('pins every workflow action, including third-party owners, to a full commit SHA', () => {
-    for (const path of ['../.github/workflows/desktop-release.yml', '../.github/workflows/desktop-ci.yml']) {
+    for (const path of ['ci/workflows/release.yml', 'ci/workflows/ci.yml']) {
       const steps = parseWorkflowSteps(readFileSync(path, 'utf8'))
       expect(steps.length).toBeGreaterThan(0)
       for (const step of steps) {
@@ -802,7 +800,7 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
   })
 
   test('confines workflow secrets to the signing, notarization and packaging release steps', () => {
-    const releaseSteps = parseWorkflowSteps(readFileSync('../.github/workflows/desktop-release.yml', 'utf8'))
+    const releaseSteps = parseWorkflowSteps(readFileSync('ci/workflows/release.yml', 'utf8'))
     const secretSteps = releaseSteps.filter((step) => step.secretLines.length > 0)
     // Packaging steps also read LOOM_READ_TOKEN to fetch the private Loom source.
     expect(secretSteps.map((step) => `${step.job}: ${step.name}`).sort()).toEqual([
@@ -825,13 +823,13 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
       expect(step.lines.join('\n')).not.toMatch(/run:.*secrets\./)
     }
 
-    const ciSteps = parseWorkflowSteps(readFileSync('../.github/workflows/desktop-ci.yml', 'utf8'))
+    const ciSteps = parseWorkflowSteps(readFileSync('ci/workflows/ci.yml', 'utf8'))
     expect(ciSteps.filter((step) => step.secretLines.length > 0)).toEqual([])
   })
 
   test('builds Loom with the locked Go version in release packaging and leaves it out of CI packaging', () => {
     const goVersion = (JSON.parse(readFileSync('runtime-lock.json', 'utf8')) as { loom: { goVersion: string } }).loom.goVersion.replace(/^go/, '')
-    const release = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    const release = readFileSync('ci/workflows/release.yml', 'utf8')
     const releaseSteps = parseWorkflowSteps(release)
     for (const job of ['package', 'package-linux', 'package-windows']) {
       const setupGo = releaseSteps.filter((step) => step.job === job && step.uses?.startsWith('actions/setup-go@'))
@@ -839,7 +837,7 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
       expect(setupGo[0].lines.join('\n'), job).toContain(`go-version: '${goVersion}'`)
     }
     expect(release).not.toContain('GOOEYPI_RUNTIME_WITHOUT_LOOM')
-    const ci = load(readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')) as { jobs: Record<string, { env?: Record<string, string> }> }
+    const ci = load(readFileSync('ci/workflows/ci.yml', 'utf8')) as { jobs: Record<string, { env?: Record<string, string> }> }
     for (const job of ['packaging-smoke', 'local-qa-package']) expect(ci.jobs[job].env?.GOOEYPI_RUNTIME_WITHOUT_LOOM, job).toBe('1')
   })
 
@@ -860,24 +858,24 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
         }
       >
     }
-    const ci = load(readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')) as Workflow
-    const audit = load(readFileSync('../.github/workflows/desktop-audit.yml', 'utf8')) as Workflow
-    const release = load(readFileSync('../.github/workflows/desktop-release.yml', 'utf8')) as Workflow
-    const pathFilter = ci.jobs['desktop-path-filter']
+    const ci = load(readFileSync('ci/workflows/ci.yml', 'utf8')) as Workflow
+    const audit = load(readFileSync('ci/workflows/audit.yml', 'utf8')) as Workflow
+    const release = load(readFileSync('ci/workflows/release.yml', 'utf8')) as Workflow
+    const pathFilter = ci.jobs['path-filter']
     const pathFilterScript = pathFilter.steps?.find((step) => step.run)?.run ?? ''
 
-    expect(ci.defaults?.run?.['working-directory']).toBe('desktop')
-    expect(audit.defaults?.run?.['working-directory']).toBe('desktop')
-    expect(release.defaults?.run?.['working-directory']).toBe('desktop')
-    expect(pathFilterScript).toContain('desktop .github/workflows/desktop-*.yml')
+    expect(ci.defaults?.run?.['working-directory']).toBeUndefined()
+    expect(audit.defaults?.run?.['working-directory']).toBeUndefined()
+    expect(release.defaults?.run?.['working-directory']).toBeUndefined()
+    expect(pathFilterScript).toContain(':(exclude)docs')
     expect(pathFilterScript).toContain("EVENT_NAME\" == 'workflow_dispatch'")
     for (const jobName of ['production-audit', 'quality', 'hermetic-e2e', 'windows-state-migration', 'packaging-smoke']) {
-      expect(ci.jobs[jobName].needs, jobName).toBe('desktop-path-filter')
-      expect(ci.jobs[jobName].if, jobName).toContain('needs.desktop-path-filter.outputs.run')
+      expect(ci.jobs[jobName].needs, jobName).toBe('path-filter')
+      expect(ci.jobs[jobName].if, jobName).toContain('needs.path-filter.outputs.run')
     }
     const localQa = ci.jobs['local-qa-package']
-    expect(localQa.needs).toEqual(['desktop-path-filter', 'production-audit', 'quality', 'hermetic-e2e', 'windows-state-migration'])
-    expect(localQa.if).toBe("github.event_name == 'workflow_dispatch' && needs.desktop-path-filter.outputs.run == 'true'")
+    expect(localQa.needs).toEqual(['path-filter', 'production-audit', 'quality', 'hermetic-e2e', 'windows-state-migration'])
+    expect(localQa.if).toBe("github.event_name == 'workflow_dispatch' && needs.path-filter.outputs.run == 'true'")
     expect(localQa.steps?.find((step) => step.uses?.startsWith('actions/checkout@'))?.with?.ref).toBe('${{ github.sha }}')
     const npmPackageStep = localQa.steps?.find((step) => step.run?.startsWith('${{ matrix.package }}'))
     expect(npmPackageStep?.run).toBe('${{ matrix.package }} -- --skip-verify')
@@ -890,15 +888,15 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
         for (const step of job.steps ?? []) {
           const setup = step.with
           if (!setup || !('node-version-file' in setup)) continue
-          expect(setup['node-version-file']).toBe('desktop/.nvmrc')
-          if ('cache' in setup) expect(setup['cache-dependency-path']).toBe('desktop/package-lock.json')
+          expect(setup['node-version-file']).toBe('.nvmrc')
+          if ('cache' in setup) expect(setup['cache-dependency-path']).toBe('package-lock.json')
         }
       }
     }
   })
 
   test('cancels superseded PR runs without cancelling validation for pushed SHAs', () => {
-    const workflow = load(readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')) as {
+    const workflow = load(readFileSync('ci/workflows/ci.yml', 'utf8')) as {
       concurrency: { group: string; 'cancel-in-progress': string }
     }
     expect(workflow.concurrency.group).toBe(
@@ -908,9 +906,9 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
   })
 
   test('gates packaging regressions on desktop pull requests', () => {
-    const ciWorkflow = readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')
+    const ciWorkflow = readFileSync('ci/workflows/ci.yml', 'utf8')
     expect(ciWorkflow).toMatch(/on:\n {2}push:\n {4}branches:\n {6}- main/)
-    expect(ciWorkflow).toMatch(/packaging-smoke:\n {4}needs: desktop-path-filter\n {4}if: github\.event_name == 'pull_request' && needs\.desktop-path-filter\.outputs\.run == 'true'/)
+    expect(ciWorkflow).toMatch(/packaging-smoke:\n {4}needs: path-filter\n {4}if: github\.event_name == 'pull_request' && needs\.path-filter\.outputs\.run == 'true'/)
     for (const runner of ['macos-14', 'ubuntu-22.04', 'windows-2022']) expect(ciWorkflow).toContain(`runner: ${runner}`)
     expect(ciWorkflow).toContain('node scripts/release/electron-builder.mjs --dir')
     expect(ciWorkflow).toContain('--publish=never')
@@ -935,14 +933,14 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
       on: Record<string, unknown>
       jobs: Record<string, WorkflowJob>
     }
-    const ci = load(readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')) as Workflow
-    const release = load(readFileSync('../.github/workflows/desktop-release.yml', 'utf8')) as Workflow
+    const ci = load(readFileSync('ci/workflows/ci.yml', 'utf8')) as Workflow
+    const release = load(readFileSync('ci/workflows/release.yml', 'utf8')) as Workflow
 
     expect(ci.on).toHaveProperty('pull_request')
     const ciAudit = ci.jobs['production-audit']
     expect(ciAudit.name).toBe('Production dependency audit')
-    expect(ciAudit.needs).toBe('desktop-path-filter')
-    expect(ciAudit.if).toBe("needs.desktop-path-filter.outputs.run == 'true'")
+    expect(ciAudit.needs).toBe('path-filter')
+    expect(ciAudit.if).toBe("needs.path-filter.outputs.run == 'true'")
     expect(ciAudit.steps?.find((step) => step.uses?.startsWith('actions/checkout@'))?.with?.ref).toBe('${{ github.event.pull_request.head.sha || github.sha }}')
     const ciAuditSteps = ciAudit.steps?.filter((step) => step.run === 'npm run audit:production') ?? []
     expect(ciAuditSteps).toHaveLength(1)
@@ -968,7 +966,7 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
       on: { schedule?: Array<{ cron?: string }>; workflow_dispatch?: unknown }
       jobs: Record<string, { steps?: Array<{ run?: string }> }>
     }
-    const audit = load(readFileSync('../.github/workflows/desktop-audit.yml', 'utf8')) as Workflow
+    const audit = load(readFileSync('ci/workflows/audit.yml', 'utf8')) as Workflow
 
     expect(audit.on.schedule).toEqual([{ cron: '17 6 * * 1' }])
     expect(audit.on).toHaveProperty('workflow_dispatch')
@@ -976,16 +974,16 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
   })
 
   test('reads the Node version from .nvmrc and hard-fails empty artifact uploads', () => {
-    const releaseWorkflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
-    const ciWorkflow = readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')
-    const auditWorkflow = readFileSync('../.github/workflows/desktop-audit.yml', 'utf8')
+    const releaseWorkflow = readFileSync('ci/workflows/release.yml', 'utf8')
+    const ciWorkflow = readFileSync('ci/workflows/ci.yml', 'utf8')
+    const auditWorkflow = readFileSync('ci/workflows/audit.yml', 'utf8')
     const workflows = [
       {
-        path: '../.github/workflows/desktop-release.yml',
+        path: 'ci/workflows/release.yml',
         source: releaseWorkflow,
       },
-      { path: '../.github/workflows/desktop-ci.yml', source: ciWorkflow },
-      { path: '../.github/workflows/desktop-audit.yml', source: auditWorkflow },
+      { path: 'ci/workflows/ci.yml', source: ciWorkflow },
+      { path: 'ci/workflows/audit.yml', source: auditWorkflow },
     ]
     for (const { path, source } of workflows) {
       const workflow = source
@@ -1042,8 +1040,8 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
       }>
     }
     type Workflow = { jobs: Record<string, WorkflowJob> }
-    const ci = load(readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')) as Workflow
-    const release = load(readFileSync('../.github/workflows/desktop-release.yml', 'utf8')) as Workflow
+    const ci = load(readFileSync('ci/workflows/ci.yml', 'utf8')) as Workflow
+    const release = load(readFileSync('ci/workflows/release.yml', 'utf8')) as Workflow
     const uploadCondition = (job: WorkflowJob) => job.steps?.find((step) => step.uses?.startsWith('actions/upload-artifact@') && String(step.with?.name).includes('packaged-smoke-diagnostics'))?.if
 
     expect(uploadCondition(ci.jobs['packaging-smoke'])).toContain('failure()')
@@ -1053,7 +1051,7 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
   })
 
   test('publishes one verified GitHub Release only after a manual request selects an existing version tag', () => {
-    const workflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    const workflow = readFileSync('ci/workflows/release.yml', 'utf8')
     const parsed = load(workflow) as {
       on: {
         workflow_dispatch?: { inputs?: Record<string, unknown> }
@@ -1090,8 +1088,8 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
       name: 'Fail if a release prerequisite did not succeed',
       'working-directory': '.',
     })
-    expect(publishSteps.find((step) => step.uses?.startsWith('actions/download-artifact@'))?.with?.path).toBe('desktop/downloaded-release-artifacts')
-    expect(publishSteps.find((step) => step.name === 'Attest release assets')?.with?.['subject-path']).toBe('desktop/release-assets/*')
+    expect(publishSteps.find((step) => step.uses?.startsWith('actions/download-artifact@'))?.with?.path).toBe('downloaded-release-artifacts')
+    expect(publishSteps.find((step) => step.name === 'Attest release assets')?.with?.['subject-path']).toBe('release-assets/*')
     expect(workflow).toContain('node scripts/release/validate-release-tag.mjs --tag "$RELEASE_TAG"')
     expect(workflow).toContain('git merge-base --is-ancestor HEAD refs/remotes/origin/main')
     expect(workflow).toContain('node scripts/release/prepare-github-release.mjs')
@@ -1118,7 +1116,7 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
   })
 
   test('pins every release job to one commit SHA resolved by validate', () => {
-    const workflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    const workflow = readFileSync('ci/workflows/release.yml', 'utf8')
     const parsed = load(workflow) as {
       jobs: Record<
         string,
@@ -1149,7 +1147,7 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
   })
 
   test('deletes stale draft assets before publishing a resumed release', () => {
-    const workflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    const workflow = readFileSync('ci/workflows/release.yml', 'utf8')
     expect(workflow).toContain('gh release view "$RELEASE_TAG" --json assets > draft-release.json')
     expect(workflow).toContain('node scripts/release/prune-draft-release-assets.mjs --assets draft-release.json --expected release-assets')
     expect(workflow).toContain('gh release delete-asset "$RELEASE_TAG" "$stale" --yes')
@@ -1157,7 +1155,7 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
   })
 
   test('passes the expected Authenticode signer to Windows packaging', () => {
-    const workflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    const workflow = readFileSync('ci/workflows/release.yml', 'utf8')
     expect(workflow).toContain('GOOEYPI_WINDOWS_CERT_SUBJECT: ${{ vars.GOOEYPI_WINDOWS_CERT_SUBJECT }}')
     expect(workflow).toContain('GOOEYPI_WINDOWS_CERT_THUMBPRINT: ${{ vars.GOOEYPI_WINDOWS_CERT_THUMBPRINT }}')
     const security = readFileSync('docs/安全模型.md', 'utf8')
@@ -1167,7 +1165,7 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
   })
 
   test('ships both mac architectures as separate builds from native-arch runners', () => {
-    const releaseWorkflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    const releaseWorkflow = readFileSync('ci/workflows/release.yml', 'utf8')
     // Two matrix legs, each on a runner whose native architecture matches the
     // target (arm64 on macos-15, x64 on macos-15-intel) so node-pty/zeromq never
     // cross-compile, and one leg's failure never cancels the other's build.
@@ -1178,7 +1176,7 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
     // The explicit target arch drives packaging, and each leg uploads only its
     // own arch directory under a per-arch artifact name and cache key.
     expect(releaseWorkflow).toContain('npm run package:mac -- --skip-verify --arch ${{ matrix.arch }}')
-    expect(releaseWorkflow).toContain('name: gooeypi-public-macos-${{ matrix.arch }}')
+    expect(releaseWorkflow).toContain('name: kim-public-macos-${{ matrix.arch }}')
     expect(releaseWorkflow).toContain('release/mac/${{ matrix.arch }}/*.dmg')
     expect(releaseWorkflow).toContain('release/mac/${{ matrix.arch }}/*.zip')
     expect(releaseWorkflow).toContain('electron-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles(')
@@ -1187,13 +1185,13 @@ else if (JSON.stringify(args) === ${JSON.stringify(JSON.stringify(expectedInstal
   })
 
   test('ships both Linux architectures as separately labeled native builds', () => {
-    const releaseWorkflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    const releaseWorkflow = readFileSync('ci/workflows/release.yml', 'utf8')
     expect(releaseWorkflow).toMatch(/package-linux:\n {4}needs: \[validate, production-audit, quality, hermetic-e2e\]\n {4}strategy:/)
     expect(releaseWorkflow).toMatch(/- arch: arm64\n {12}runner: ubuntu-24\.04-arm/)
     expect(releaseWorkflow).toMatch(/- arch: x64\n {12}runner: ubuntu-22\.04/)
     expect(releaseWorkflow).toContain('runs-on: ${{ matrix.runner }}')
     expect(releaseWorkflow).toContain('npm run package:linux -- --skip-verify --arch ${{ matrix.arch }}')
-    expect(releaseWorkflow).toContain('name: gooeypi-public-linux-${{ matrix.arch }}')
+    expect(releaseWorkflow).toContain('name: kim-public-linux-${{ matrix.arch }}')
     expect(releaseWorkflow).toContain('release/linux/${{ matrix.arch }}/*.AppImage')
     expect(releaseWorkflow).toContain('release/linux/${{ matrix.arch }}/latest*.yml')
     expect(releaseWorkflow).toContain('electron-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles(')
@@ -1204,20 +1202,8 @@ describe('GitHub Release publication', () => {
   test('selects an exact enabled platform set', () => {
     expect(parseReleasePlatforms('mac,linux')).toEqual(['mac', 'linux'])
     expect(expectedGitHubReleaseAssets('0.2.0', ['mac', 'linux'])).not.toContain('Kim-0.2.0-win-x64.exe')
-    expect(expectedGitHubReleaseAssets('0.2.0', ['mac'])).toEqual([
-      'Kim-0.2.0-arm64.zip',
-      'Kim-0.2.0-intel-chip.dmg',
-      'Kim-0.2.0-m-chip.dmg',
-      'Kim-0.2.0-x64.zip',
-      'latest-mac.yml',
-    ])
-    expect(expectedDownloadedReleaseAssets('0.2.0', ['mac'])).toEqual([
-      'Kim-0.2.0-arm64.zip',
-      'Kim-0.2.0-x64.dmg',
-      'Kim-0.2.0-arm64.dmg',
-      'Kim-0.2.0-x64.zip',
-      'latest-mac.yml',
-    ])
+    expect(expectedGitHubReleaseAssets('0.2.0', ['mac'])).toEqual(['Kim-0.2.0-arm64.zip', 'Kim-0.2.0-intel-chip.dmg', 'Kim-0.2.0-m-chip.dmg', 'Kim-0.2.0-x64.zip', 'latest-mac.yml'])
+    expect(expectedDownloadedReleaseAssets('0.2.0', ['mac'])).toEqual(['Kim-0.2.0-arm64.zip', 'Kim-0.2.0-x64.dmg', 'Kim-0.2.0-arm64.dmg', 'Kim-0.2.0-x64.zip', 'latest-mac.yml'])
     expect(expectedGitHubReleaseAssets('0.2.0', ['linux'])).toEqual([
       'Kim-0.2.0-linux-aarch64.pacman',
       'Kim-0.2.0-linux-aarch64.rpm',
@@ -1257,7 +1243,7 @@ describe('GitHub Release publication', () => {
   })
 
   test('covers exactly the platform and architecture legs the release workflow builds', () => {
-    const workflow = load(readFileSync('../.github/workflows/desktop-release.yml', 'utf8')) as {
+    const workflow = load(readFileSync('ci/workflows/release.yml', 'utf8')) as {
       jobs: Record<
         string,
         {
@@ -1645,8 +1631,8 @@ describe('post-package verification helpers', () => {
   test('verifies and uploads every configured Linux installer format', () => {
     expect(expectedArtifactExtensions('linux')).toEqual(['.AppImage', '.deb', '.rpm', '.pacman'])
     expect(expectedArtifactExtensions('win')).toEqual(['.exe', '.zip', '.appx'])
-    const ciWorkflow = readFileSync('../.github/workflows/desktop-ci.yml', 'utf8')
-    const releaseWorkflow = readFileSync('../.github/workflows/desktop-release.yml', 'utf8')
+    const ciWorkflow = readFileSync('ci/workflows/ci.yml', 'utf8')
+    const releaseWorkflow = readFileSync('ci/workflows/release.yml', 'utf8')
     expect(ciWorkflow).toContain('release/linux/**/*.pacman')
     expect(releaseWorkflow).toContain('release/linux/${{ matrix.arch }}/*.pacman')
   })

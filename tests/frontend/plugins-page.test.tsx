@@ -258,7 +258,7 @@ describe('PluginsPage bundled capability controls', () => {
     const primeAddMcp = [...dialog.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.includes('Add MCP'))!
     expect(primeAddMcp.disabled).toBe(true)
     expect(primeAddMcp.textContent).toContain('managed outside Kim')
-    expect(dialog.textContent).not.toContain('Server URL')
+    expect(dialog.textContent).not.toContain('服务地址')
     expect(dialog.textContent).not.toContain('Authentication')
     expect(connect).not.toHaveBeenCalled()
 
@@ -276,7 +276,7 @@ describe('PluginsPage bundled capability controls', () => {
     dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')!
     await act(async () => { [...dialog.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.includes('Add MCP'))!.click() })
     expect(dialog.textContent).toContain('local stdio server')
-    expect(dialog.textContent).not.toContain('Server URL')
+    expect(dialog.textContent).not.toContain('服务地址')
     expect(dialog.textContent).not.toContain('Authentication')
     const inputs = dialog.querySelectorAll<HTMLInputElement>('input')
     await act(async () => { changeInput(inputs[0], 'files'); changeInput(inputs[1], 'npx') })

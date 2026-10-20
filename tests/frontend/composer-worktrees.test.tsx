@@ -57,8 +57,8 @@ describe('composer worktree picker', () => {
   it('does not expose an automatic model choice before the catalog loads', () => {
     act(() => root.render(<Composer {...props()} />))
 
-    const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="Model: No model available"]')
-    expect(trigger?.textContent).toContain('No model available')
+    const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="模型：没有可用模型"]')
+    expect(trigger?.textContent).toContain('没有可用模型')
     expect(trigger?.disabled).toBe(true)
   })
 

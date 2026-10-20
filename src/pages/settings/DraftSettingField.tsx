@@ -99,7 +99,7 @@ export function DraftSettingField({
         disabled={!state.dirty || Boolean(state.error) || Boolean(state.pending)}
         onClick={() => { void commit() }}
       >
-        {state.pending ? 'Saving…' : 'Save'}
+        {state.pending ? '正在保存…' : '保存'}
       </button>
     </div>
   )

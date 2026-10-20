@@ -18,10 +18,10 @@ import type { AppSettings, PrimeWorkApi, VoiceCredentialProvider, VoiceCredentia
 import type { SettingsSectionProps } from './contracts'
 
 const CREDENTIALS: Array<{ id: VoiceCredentialProvider; name: string; monogram: string; detail: string }> = [
-  { id: 'openai', name: 'OpenAI', monogram: 'OA', detail: 'Required for live dictation and the realtime orb.' },
-  { id: 'groq', name: 'Groq', monogram: 'GQ', detail: 'Used only when Groq is your dictation provider.' },
-  { id: 'deepgram', name: 'Deepgram', monogram: 'DG', detail: 'Used only when Deepgram is your dictation provider.' },
-  { id: 'self-hosted', name: 'Self-hosted endpoint', monogram: 'SH', detail: 'Optional bearer token for your Parakeet or Whisper server.' },
+  { id: 'openai', name: 'OpenAI', monogram: 'OA', detail: '实时听写和语音球需要它。' },
+  { id: 'groq', name: 'Groq', monogram: 'GQ', detail: '仅在听写服务选择 Groq 时使用。' },
+  { id: 'deepgram', name: 'Deepgram', monogram: 'DG', detail: '仅在听写服务选择 Deepgram 时使用。' },
+  { id: 'self-hosted', name: '自建服务', monogram: 'SH', detail: 'Parakeet 或 Whisper 服务的可选访问令牌。' },
 ]
 
 const CONNECTION_CREDENTIALS = CREDENTIALS.filter((item) => item.id !== 'self-hosted')
@@ -46,7 +46,7 @@ function ModelSelect({ label, description, value, options, onChange }: { label: 
       <span><strong>{label}</strong><small>{description}</small></span>
       <span className="voice-choice-control">
         <select aria-label={label} value={value} onChange={(event) => onChange(event.target.value)}>
-          {choices.map((option) => <option key={option.value} value={option.value}>{option.label}{option.recommended ? ' · Recommended' : ''}</option>)}
+          {choices.map((option) => <option key={option.value} value={option.value}>{option.label}{option.recommended ? ' · 推荐' : ''}</option>)}
         </select>
         {selected ? <small>{selected.detail}</small> : null}
       </span>
@@ -122,7 +122,7 @@ export function VoiceSettings({ settings, onUpdate, voice, platform = 'darwin' }
       await voice.testSelfHosted({ url, model })
       await onUpdate({ voiceSelfHostedUrl: url, voiceSelfHostedModel: model })
       setSelfHostedTestState('connected')
-      setSelfHostedMessage('Connected. Kim successfully transcribed a test audio clip.')
+      setSelfHostedMessage('已连接，Kim 成功转写了一段测试音频。')
     } catch (error) {
       setSelfHostedTestState('error')
       setSelfHostedMessage(errorMessage(error))
@@ -137,25 +137,25 @@ export function VoiceSettings({ settings, onUpdate, voice, platform = 'darwin' }
     <>
       <header className="voice-settings-header">
         <span className="voice-settings-header__icon"><Mic2 size={19} /></span>
-        <div><h1>Voice</h1><p>Connect a speech service, choose a model, then use the microphone or realtime orb.</p></div>
+        <div><h1>语音</h1><p>连接语音服务、选择模型，然后就可以用麦克风或语音球。</p></div>
       </header>
 
       {serviceState === 'restart-required' ? (
         <div className="voice-bridge-notice" role="status">
           <RefreshCw size={17} />
-          <span><strong>Restart Kim to finish enabling Voice</strong><small>This app window is connected to an older desktop process without the Voice handlers. Quit Kim completely with {shortcutLabel(platform, ['Primary', 'Q'])}, then reopen it.</small></span>
+          <span><strong>重启 Kim 以完成语音功能的启用</strong><small>当前窗口连接的是没有语音功能的旧桌面进程。请用 {shortcutLabel(platform, ['Primary', 'Q'])} 完全退出 Kim 后再打开。</small></span>
         </div>
       ) : null}
 
       <section className="voice-section" aria-labelledby="voice-connections-title">
         <div className="voice-section__heading">
           <span><ShieldCheck size={15} /></span>
-          <div><h2 id="voice-connections-title">Connections</h2><p>Add a key for a hosted service. Voice keys stay in memory while Kim is running; enter them again after restarting.</p></div>
+          <div><h2 id="voice-connections-title">连接</h2><p>为托管服务添加密钥。语音密钥只在 Kim 运行期间保存在内存里，重启后需要重新输入。</p></div>
         </div>
         {serviceState === 'ready' && status && sessionOnly ? (
           <div className="voice-storage-notice" role="status">
             <KeyRound size={17} />
-            <span><strong>Voice keys are session-only</strong><small>{status.storage.message ?? 'Keys stay available for this launch. Enter them again after restarting Kim.'} You can still add a key for this session.</small></span>
+            <span><strong>语音密钥只在本次运行有效</strong><small>{status.storage.message ?? '密钥只在本次启动期间有效，重启 Kim 后需要重新输入。'} You can still add a key for this session.</small></span>
           </div>
         ) : null}
         {voice ? <div className="voice-connection-grid">
@@ -166,11 +166,11 @@ export function VoiceSettings({ settings, onUpdate, voice, platform = 'darwin' }
               <article className={`voice-connection-card${configured ? ' is-connected' : ''}`} key={item.id}>
                 <span className="voice-provider-mark" aria-hidden="true">{item.monogram}</span>
                 <div className="voice-connection-card__body">
-                  <span className="voice-connection-card__title"><strong>{item.name}</strong><i>{serviceState === 'checking' ? 'Checking…' : serviceState === 'restart-required' ? 'Restart required' : serviceState === 'error' ? 'Unavailable' : configured ? source === 'environment' ? 'Environment key' : source === 'session' ? 'Session only' : 'Connected' : 'Not connected'}</i></span>
+                  <span className="voice-connection-card__title"><strong>{item.name}</strong><i>{serviceState === 'checking' ? '正在检查…' : serviceState === 'restart-required' ? '需要重启' : serviceState === 'error' ? '不可用' : configured ? source === 'environment' ? '环境变量密钥' : source === 'session' ? '仅本次运行' : '已连接' : '未连接'}</i></span>
                   <small>{item.detail}</small>
                 </div>
-                {serviceState === 'ready' ? <button type="button" className="button" disabled={busy} onClick={() => openCredential(item.id)}><KeyRound size={13} /> {configured ? 'Replace key' : 'Add key'}</button> : null}
-                {serviceState === 'ready' && (source === 'saved' || source === 'session') ? <button type="button" className="button button--icon" aria-label={`Remove ${item.name} API key`} disabled={busy} onClick={() => void removeCredential(item.id)}><Trash2 size={13} /></button> : null}
+                {serviceState === 'ready' ? <button type="button" className="button" disabled={busy} onClick={() => openCredential(item.id)}><KeyRound size={13} /> {configured ? '更换密钥' : '添加密钥'}</button> : null}
+                {serviceState === 'ready' && (source === 'saved' || source === 'session') ? <button type="button" className="button button--icon" aria-label={`移除 ${item.name} API 密钥`} disabled={busy} onClick={() => void removeCredential(item.id)}><Trash2 size={13} /></button> : null}
               </article>
             )
           })}
@@ -181,91 +181,91 @@ export function VoiceSettings({ settings, onUpdate, voice, platform = 'darwin' }
       <section className="voice-section" aria-labelledby="voice-dictation-title">
         <div className="voice-section__heading">
           <span><Waves size={15} /></span>
-          <div><h2 id="voice-dictation-title">Dictation</h2><p>This controls the microphone beside Send.</p></div>
+          <div><h2 id="voice-dictation-title">听写</h2><p>控制发送按钮旁边的麦克风。</p></div>
         </div>
         <div className="voice-setup-card">
           <label className="voice-choice-row">
-            <span><strong>Service</strong><small>Choose where your microphone audio is transcribed.</small></span>
+            <span><strong>服务</strong><small>选择麦克风音频在哪里转写。</small></span>
             <span className="voice-choice-control">
-              <select aria-label="Dictation service" value={settings.voiceTranscriptionProvider} onChange={(event) => update('voiceTranscriptionProvider', event.target.value as VoiceTranscriptionProvider)}>
-                {VOICE_PROVIDER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}{option.recommended ? ' · Recommended' : ''}</option>)}
+              <select aria-label="听写服务" value={settings.voiceTranscriptionProvider} onChange={(event) => update('voiceTranscriptionProvider', event.target.value as VoiceTranscriptionProvider)}>
+                {VOICE_PROVIDER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}{option.recommended ? ' · 推荐' : ''}</option>)}
               </select>
               <small>{provider.detail}</small>
             </span>
           </label>
 
-          {settings.voiceTranscriptionProvider === 'openai-live' ? <ModelSelect label="Dictation model" description="Streams text while you are speaking." value={settings.voiceOpenAiLiveTranscriptionModel} options={OPENAI_LIVE_MODELS} onChange={(value) => update('voiceOpenAiLiveTranscriptionModel', value)} /> : null}
-          {settings.voiceTranscriptionProvider === 'openai' ? <ModelSelect label="Dictation model" description="Transcribes after you stop recording." value={settings.voiceOpenAiTranscriptionModel} options={OPENAI_FILE_MODELS} onChange={(value) => update('voiceOpenAiTranscriptionModel', value)} /> : null}
-          {settings.voiceTranscriptionProvider === 'groq' ? <ModelSelect label="Dictation model" description="Choose speed or maximum Whisper accuracy." value={settings.voiceGroqTranscriptionModel} options={GROQ_MODELS} onChange={(value) => update('voiceGroqTranscriptionModel', value)} /> : null}
-          {settings.voiceTranscriptionProvider === 'deepgram' ? <ModelSelect label="Dictation model" description="Choose a general or audio-specific Nova model." value={settings.voiceDeepgramTranscriptionModel} options={DEEPGRAM_MODELS} onChange={(value) => update('voiceDeepgramTranscriptionModel', value)} /> : null}
+          {settings.voiceTranscriptionProvider === 'openai-live' ? <ModelSelect label="听写模型" description="边说边出文字。" value={settings.voiceOpenAiLiveTranscriptionModel} options={OPENAI_LIVE_MODELS} onChange={(value) => update('voiceOpenAiLiveTranscriptionModel', value)} /> : null}
+          {settings.voiceTranscriptionProvider === 'openai' ? <ModelSelect label="听写模型" description="停止录音后再转写。" value={settings.voiceOpenAiTranscriptionModel} options={OPENAI_FILE_MODELS} onChange={(value) => update('voiceOpenAiTranscriptionModel', value)} /> : null}
+          {settings.voiceTranscriptionProvider === 'groq' ? <ModelSelect label="听写模型" description="在速度和 Whisper 最高准确度之间选择。" value={settings.voiceGroqTranscriptionModel} options={GROQ_MODELS} onChange={(value) => update('voiceGroqTranscriptionModel', value)} /> : null}
+          {settings.voiceTranscriptionProvider === 'deepgram' ? <ModelSelect label="听写模型" description="选择通用或音频专用的 Nova 模型。" value={settings.voiceDeepgramTranscriptionModel} options={DEEPGRAM_MODELS} onChange={(value) => update('voiceDeepgramTranscriptionModel', value)} /> : null}
           {settings.voiceTranscriptionProvider === 'self-hosted' ? (
             <div className="voice-self-hosted-setup">
-              <span className="voice-local-setup__intro"><Server size={15} /><span><strong>Connect your transcription server</strong><small>Works with Parakeet, Whisper, and other servers that implement the OpenAI transcription API.</small></span></span>
+              <span className="voice-local-setup__intro"><Server size={15} /><span><strong>连接你的转写服务</strong><small>支持 Parakeet、Whisper 等实现了 OpenAI 转写接口的服务。</small></span></span>
               <label className="voice-path-field">
-                <span><strong>Server URL</strong><small>Enter the server base URL or its full /v1/audio/transcriptions endpoint.</small></span>
-                <input aria-label="Self-hosted server URL" type="url" value={selfHostedUrl} placeholder="http://127.0.0.1:9000" spellCheck={false} onChange={(event) => { setSelfHostedUrl(event.target.value); setSelfHostedTestState('idle'); setSelfHostedMessage('') }} onBlur={() => { const value = selfHostedUrl.trim(); if (value !== settings.voiceSelfHostedUrl) update('voiceSelfHostedUrl', value) }} />
+                <span><strong>服务地址</strong><small>填写服务的基础地址，或完整的 /v1/audio/transcriptions 地址。</small></span>
+                <input aria-label="自建服务地址" type="url" value={selfHostedUrl} placeholder="http://127.0.0.1:9000" spellCheck={false} onChange={(event) => { setSelfHostedUrl(event.target.value); setSelfHostedTestState('idle'); setSelfHostedMessage('') }} onBlur={() => { const value = selfHostedUrl.trim(); if (value !== settings.voiceSelfHostedUrl) update('voiceSelfHostedUrl', value) }} />
               </label>
               <label className="voice-path-field">
-                <span><strong>Model ID</strong><small>Optional. Leave blank to ask the server for its default English model.</small></span>
-                <input aria-label="Self-hosted model ID" value={selfHostedModel} placeholder="nvidia/parakeet-tdt-0.6b-v3" spellCheck={false} onChange={(event) => { setSelfHostedModel(event.target.value); setSelfHostedTestState('idle'); setSelfHostedMessage('') }} onBlur={() => { const value = selfHostedModel.trim(); if (value !== settings.voiceSelfHostedModel) update('voiceSelfHostedModel', value) }} />
+                <span><strong>模型 ID</strong><small>可选。留空则使用服务默认的英文模型。</small></span>
+                <input aria-label="自建模型 ID" value={selfHostedModel} placeholder="nvidia/parakeet-tdt-0.6b-v3" spellCheck={false} onChange={(event) => { setSelfHostedModel(event.target.value); setSelfHostedTestState('idle'); setSelfHostedMessage('') }} onBlur={() => { const value = selfHostedModel.trim(); if (value !== settings.voiceSelfHostedModel) update('voiceSelfHostedModel', value) }} />
               </label>
               <div className="voice-self-hosted-auth">
-                <span><strong>Access token</strong><small>Optional. Kept in memory while Kim is running; enter it again after restarting.</small></span>
+                <span><strong>访问令牌</strong><small>可选。只在 Kim 运行期间保存在内存里，重启后需要重新输入。</small></span>
                 <span className="voice-self-hosted-auth__actions">
-                  <i>{status?.configured['self-hosted'] ? status.source['self-hosted'] === 'session' ? 'Session only' : status.source['self-hosted'] === 'environment' ? 'Environment token' : 'Token set' : 'No token'}</i>
-                  {voice && serviceState === 'ready' ? <button type="button" className="button" disabled={busy} onClick={() => openCredential('self-hosted')}><KeyRound size={13} /> {status?.configured['self-hosted'] ? 'Replace token' : 'Add token'}</button> : null}
-                  {voice && serviceState === 'ready' && (status?.source['self-hosted'] === 'saved' || status?.source['self-hosted'] === 'session') ? <button type="button" className="button button--icon" aria-label="Remove self-hosted access token" disabled={busy} onClick={() => void removeCredential('self-hosted')}><Trash2 size={13} /></button> : null}
+                  <i>{status?.configured['self-hosted'] ? status.source['self-hosted'] === 'session' ? '仅本次运行' : status.source['self-hosted'] === 'environment' ? '环境变量令牌' : '已设置令牌' : '未设置令牌'}</i>
+                  {voice && serviceState === 'ready' ? <button type="button" className="button" disabled={busy} onClick={() => openCredential('self-hosted')}><KeyRound size={13} /> {status?.configured['self-hosted'] ? '更换令牌' : '添加令牌'}</button> : null}
+                  {voice && serviceState === 'ready' && (status?.source['self-hosted'] === 'saved' || status?.source['self-hosted'] === 'session') ? <button type="button" className="button button--icon" aria-label="移除自建服务的访问令牌" disabled={busy} onClick={() => void removeCredential('self-hosted')}><Trash2 size={13} /></button> : null}
                 </span>
               </div>
               <div className="voice-self-hosted-connect">
-                <span><strong>Connection check</strong><small>Uploads a tenth of a second of silence to verify the actual transcription route and model.</small></span>
-                <button type="button" className="button button--primary" disabled={!voice || !selfHostedUrl.trim() || selfHostedTestState === 'testing'} onClick={() => void testSelfHosted()}>{selfHostedTestState === 'testing' ? <LoaderCircle className="is-spinning" size={13} /> : <Server size={13} />} {selfHostedTestState === 'testing' ? 'Testing…' : 'Connect & test'}</button>
+                <span><strong>连接检查</strong><small>上传 0.1 秒静音，验证实际的转写链路和模型。</small></span>
+                <button type="button" className="button button--primary" disabled={!voice || !selfHostedUrl.trim() || selfHostedTestState === 'testing'} onClick={() => void testSelfHosted()}>{selfHostedTestState === 'testing' ? <LoaderCircle className="is-spinning" size={13} /> : <Server size={13} />} {selfHostedTestState === 'testing' ? '正在测试…' : 'Connect & test'}</button>
               </div>
               {selfHostedMessage ? <p className={`voice-self-hosted-result is-${selfHostedTestState}`} role={selfHostedTestState === 'error' ? 'alert' : 'status'}>{selfHostedTestState === 'connected' ? <Check size={13} /> : <ShieldAlert size={13} />}{selfHostedMessage}</p> : null}
-              <p className="voice-self-hosted-note">Plain HTTP is allowed on this computer and private-network addresses. Use HTTPS for public hosts.</p>
+              <p className="voice-self-hosted-note">本机和内网地址可以用 HTTP；公网地址请用 HTTPS。</p>
             </div>
           ) : null}
           {settings.voiceTranscriptionProvider === 'local-whisper' ? (
             <div className="voice-local-setup">
-              <span className="voice-local-setup__intro"><Laptop size={15} /><span><strong>Local whisper.cpp setup</strong><small>These are file paths because Kim runs your installed whisper.cpp directly. Hosted services do not need them.</small></span></span>
-              <PathInput label="whisper-cli executable" description="Path to the whisper.cpp command-line program." placeholder="/opt/homebrew/bin/whisper-cli" value={settings.voiceLocalWhisperExecutable} onCommit={(value) => update('voiceLocalWhisperExecutable', value)} />
-              <PathInput label="GGML model file" description="Path to the downloaded whisper.cpp model." placeholder="/path/to/ggml-large-v3-turbo.bin" value={settings.voiceLocalWhisperModel} onCommit={(value) => update('voiceLocalWhisperModel', value)} />
+              <span className="voice-local-setup__intro"><Laptop size={15} /><span><strong>本地 whisper.cpp 设置</strong><small>这里填文件路径，因为 Kim 会直接运行你安装的 whisper.cpp；托管服务不需要。</small></span></span>
+              <PathInput label="whisper-cli executable" description="whisper.cpp 命令行程序的路径。" placeholder="/opt/homebrew/bin/whisper-cli" value={settings.voiceLocalWhisperExecutable} onCommit={(value) => update('voiceLocalWhisperExecutable', value)} />
+              <PathInput label="GGML 模型文件" description="已下载的 whisper.cpp 模型路径。" placeholder="/path/to/ggml-large-v3-turbo.bin" value={settings.voiceLocalWhisperModel} onCommit={(value) => update('voiceLocalWhisperModel', value)} />
             </div>
           ) : null}
 
           {settings.voiceTranscriptionProvider === 'self-hosted' ? (
             <div className={`voice-requirement${selfHostedUrl.trim() ? ' is-ready' : ''}`}>
-              <span>{selfHostedUrl.trim() ? <Check size={13} /> : <Server size={13} />}{selfHostedUrl.trim() ? 'Self-hosted server configured' : 'Server URL required'}</span>
+              <span>{selfHostedUrl.trim() ? <Check size={13} /> : <Server size={13} />}{selfHostedUrl.trim() ? '已配置自建服务' : '需要服务地址'}</span>
             </div>
           ) : selectedCredential ? (
             <div className={`voice-requirement${selectedConfigured ? ' is-ready' : ''}`}>
               <span>{selectedConfigured ? <Check size={13} /> : <KeyRound size={13} />}{selectedConfigured ? `${CREDENTIALS.find((item) => item.id === selectedCredential)?.name} is connected` : `${CREDENTIALS.find((item) => item.id === selectedCredential)?.name} key required`}</span>
-              {!selectedConfigured && voice && serviceState === 'ready' ? <button type="button" onClick={() => openCredential(selectedCredential)}>Add key</button> : null}
+              {!selectedConfigured && voice && serviceState === 'ready' ? <button type="button" onClick={() => openCredential(selectedCredential)}>添加密钥</button> : null}
             </div>
-          ) : <div className="voice-requirement is-ready"><span><Check size={13} />Runs locally with no API key</span></div>}
+          ) : <div className="voice-requirement is-ready"><span><Check size={13} />在本地运行，不需要 API 密钥</span></div>}
         </div>
       </section>
 
       <section className="voice-section" aria-labelledby="voice-realtime-title">
         <div className="voice-section__heading">
           <span><Radio size={15} /></span>
-          <div><h2 id="voice-realtime-title">Realtime orb</h2><p>The draggable voice agent. It uses your OpenAI connection.</p></div>
+          <div><h2 id="voice-realtime-title">语音球</h2><p>可拖动的语音助手，使用你的 OpenAI 连接。</p></div>
         </div>
         <div className="voice-setup-card">
-          <ModelSelect label="Realtime model" description="Handles conversation, web search, and task delegation." value={settings.voiceRealtimeModel} options={REALTIME_MODELS} onChange={(value) => update('voiceRealtimeModel', value)} />
-          <ModelSelect label="Speaking voice" description="The voice you hear when the orb responds." value={settings.voiceRealtimeVoice} options={REALTIME_VOICES} onChange={(value) => update('voiceRealtimeVoice', value)} />
+          <ModelSelect label="实时模型" description="负责对话、网页搜索和任务分派。" value={settings.voiceRealtimeModel} options={REALTIME_MODELS} onChange={(value) => update('voiceRealtimeModel', value)} />
+          <ModelSelect label="说话声音" description="语音球回答时使用的声音。" value={settings.voiceRealtimeVoice} options={REALTIME_VOICES} onChange={(value) => update('voiceRealtimeVoice', value)} />
           <div className={`voice-requirement${status?.configured.openai ? ' is-ready' : ''}`}>
-            <span>{status?.configured.openai ? <Check size={13} /> : <KeyRound size={13} />}{status?.configured.openai ? 'OpenAI is connected' : 'OpenAI key required'}</span>
-            {!status?.configured.openai && voice && serviceState === 'ready' ? <button type="button" onClick={() => openCredential('openai')}>Add key</button> : null}
+            <span>{status?.configured.openai ? <Check size={13} /> : <KeyRound size={13} />}{status?.configured.openai ? 'OpenAI 已连接' : '需要 OpenAI 密钥'}</span>
+            {!status?.configured.openai && voice && serviceState === 'ready' ? <button type="button" onClick={() => openCredential('openai')}>添加密钥</button> : null}
           </div>
-          {sessionOnly ? <p className="voice-realtime-note">OpenAI keys stay in memory while Kim is running. Enter them again after restarting.</p> : null}
+          {sessionOnly ? <p className="voice-realtime-note">OpenAI 密钥只在 Kim 运行期间保存在内存里，重启后需要重新输入。</p> : null}
         </div>
       </section>
 
-      {credential ? <Modal title={`Connect ${CREDENTIALS.find((item) => item.id === credential)?.name ?? credential}`} onClose={closeCredential} footer={<><button type="button" className="button" disabled={busy} onClick={closeCredential}>Cancel</button><button type="button" className="button button--primary" disabled={busy || !apiKey.trim()} onClick={() => void saveCredential()}>{busy ? 'Applying…' : credential === 'self-hosted' ? 'Use token' : 'Use API key'}</button></>}>
-        <p className="modal-intro">Paste the {credential === 'self-hosted' ? 'optional bearer token' : 'provider API key'}. {sessionOnly ? 'Kim keeps it in desktop memory for this app session. Enter it again after restarting Kim.' : 'Kim encrypts it on this device and does not show the key again.'}</p>
+      {credential ? <Modal title={`连接 ${CREDENTIALS.find((item) => item.id === credential)?.name ?? credential}`} onClose={closeCredential} footer={<><button type="button" className="button" disabled={busy} onClick={closeCredential}>取消</button><button type="button" className="button button--primary" disabled={busy || !apiKey.trim()} onClick={() => void saveCredential()}>{busy ? '正在应用…' : credential === 'self-hosted' ? '使用令牌' : '使用 API 密钥'}</button></>}>
+        <p className="modal-intro">粘贴{credential === 'self-hosted' ? '可选的访问令牌' : '服务商的 API 密钥'}。{sessionOnly ? 'Kim 只在本次运行期间把它保存在内存里，重启后需要重新输入。' : 'Kim 会在本机加密保存，之后不再显示密钥。'}</p>
         {failure ? <p className="settings-error" role="alert">{failure}</p> : null}
-        <label className="field"><span>{credential === 'self-hosted' ? 'Access token' : 'API key'}</span><input autoFocus type="password" value={apiKey} autoComplete="off" spellCheck={false} placeholder={credential === 'self-hosted' ? 'Paste access token' : 'Paste API key'} onChange={(event) => setApiKey(event.target.value)} /></label>
+        <label className="field"><span>{credential === 'self-hosted' ? '访问令牌' : 'API 密钥'}</span><input autoFocus type="password" value={apiKey} autoComplete="off" spellCheck={false} placeholder={credential === 'self-hosted' ? '粘贴访问令牌' : '粘贴 API 密钥'} onChange={(event) => setApiKey(event.target.value)} /></label>
       </Modal> : null}
     </>
   )

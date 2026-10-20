@@ -113,8 +113,8 @@ export const ModelPicker = memo(function ModelPicker({ value, modelsByProvider, 
         ref={triggerRef}
         type="button"
         className="permissions-chip model-picker__trigger"
-        aria-label={`Model: ${selected?.name ?? 'No model available'}`}
-        title={selected?.name ?? 'No model available'}
+        aria-label={`模型：${selected?.name ?? '没有可用模型'}`}
+        title={selected?.name ?? '没有可用模型'}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
@@ -128,7 +128,7 @@ export const ModelPicker = memo(function ModelPicker({ value, modelsByProvider, 
         }}
       >
         <Brain size={14} />
-        <span>{selected?.name ?? 'No model available'}</span>
+        <span>{selected?.name ?? '没有可用模型'}</span>
         <ChevronDown size={11} aria-hidden="true" />
       </button>
       {open ? (
@@ -153,12 +153,12 @@ export const ModelPicker = memo(function ModelPicker({ value, modelsByProvider, 
               ref={searchRef}
               type="search"
               role="combobox"
-              aria-label="Search models"
+              aria-label="搜索模型"
               aria-autocomplete="list"
               aria-expanded="true"
               aria-controls={listId}
               aria-activedescendant={activeKey ? `${listId}-${activeKey}` : undefined}
-              placeholder="Search models"
+              placeholder="搜索模型"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={onSearchKeyDown}
@@ -168,8 +168,8 @@ export const ModelPicker = memo(function ModelPicker({ value, modelsByProvider, 
               <span className="sr-only">{resultCount} {resultCount === 1 ? 'model' : 'models'} listed</span>
             </span>
           </div>
-          <div className="model-picker__providers" role="group" aria-label="Filter models by provider">
-            <button type="button" className={providerFilter === null ? 'is-active' : ''} aria-pressed={providerFilter === null} onClick={() => setProviderFilter(null)}>All</button>
+          <div className="model-picker__providers" role="group" aria-label="按服务商筛选模型">
+            <button type="button" className={providerFilter === null ? 'is-active' : ''} aria-pressed={providerFilter === null} onClick={() => setProviderFilter(null)}>全部</button>
             {groups.map(({ provider }) => (
               <button
                 type="button"
@@ -180,12 +180,12 @@ export const ModelPicker = memo(function ModelPicker({ value, modelsByProvider, 
               >{provider.name}</button>
             ))}
           </div>
-          <div className="model-picker__results" id={listId} role="listbox" aria-label="Models">
+          <div className="model-picker__results" id={listId} role="listbox" aria-label="模型">
             {visibleGroups.map(({ provider, models }) => (
               <div className="model-picker__group" role="group" aria-label={provider.name} key={provider.id}>
                 <div className="model-picker__group-heading">
                   <span>{provider.name}</span>
-                  <small>{provider.configured ? `${models.length} model${models.length === 1 ? '' : 's'}` : 'Not connected'}</small>
+                  <small>{provider.configured ? `${models.length} model${models.length === 1 ? '' : 's'}` : '未连接'}</small>
                 </div>
                 {models.map((candidate) => {
                   const isSelected = candidate.key === value
@@ -208,13 +208,13 @@ export const ModelPicker = memo(function ModelPicker({ value, modelsByProvider, 
                         <strong>{candidate.name}</strong>
                         {candidate.id !== candidate.name ? <small>{candidate.id}</small> : null}
                       </span>
-                      {!candidate.available ? <span className="model-picker__availability">Connect</span> : null}
+                      {!candidate.available ? <span className="model-picker__availability">连接</span> : null}
                     </button>
                   )
                 })}
               </div>
             ))}
-            {!resultCount ? <div className="model-picker__empty">{query.trim() ? 'No models match this search.' : 'No models for this provider.'}</div> : null}
+            {!resultCount ? <div className="model-picker__empty">{query.trim() ? '没有匹配的模型。' : '这个服务商没有模型。'}</div> : null}
           </div>
         </div>
       ) : null}

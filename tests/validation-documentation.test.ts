@@ -10,7 +10,7 @@ const load = createRequire(import.meta.url)('js-yaml').load as (source: string) 
 const validationPath = resolve('docs/测试与验收说明.md')
 const validation = readFileSync(validationPath, 'utf8')
 const packageManifest = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { scripts: Record<string, string> }
-const workflowsPath = resolve('../.github/workflows')
+const workflowsPath = resolve('ci/workflows')
 
 function record(value: unknown): RecordValue {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as RecordValue) : {}
@@ -92,8 +92,8 @@ describe('validation guide structure', () => {
   })
 
   test('keeps CI and release job tables equal to their workflow job ids', () => {
-    const ciJobs = workflowJobs(resolve('../.github/workflows/desktop-ci.yml'))
-    const releaseJobs = workflowJobs(resolve('../.github/workflows/desktop-release.yml'))
+    const ciJobs = workflowJobs(resolve('ci/workflows/ci.yml'))
+    const releaseJobs = workflowJobs(resolve('ci/workflows/release.yml'))
     const ciTable = firstTableRows(section(validation, 'Pull-request and branch CI')).map(([job]) => job.replaceAll('`', ''))
     const releaseTable = firstTableRows(section(validation, 'Public release validation')).map(([job]) => job.replaceAll('`', ''))
 
@@ -102,7 +102,7 @@ describe('validation guide structure', () => {
   })
 
   test('documents the scheduled audit workflow contract', () => {
-    const audit = workflow(resolve('../.github/workflows/desktop-audit.yml'))
+    const audit = workflow(resolve('ci/workflows/audit.yml'))
     const triggers = record(audit.on)
     expect(triggers).toHaveProperty('schedule')
     expect(triggers).toHaveProperty('workflow_dispatch')
@@ -111,7 +111,7 @@ describe('validation guide structure', () => {
 
   test('links every workflow file from the guide', () => {
     const linkedTargets = new Set(localMarkdownTargets(validationPath, validation))
-    const workflowFiles = readdirSync(workflowsPath).filter((name) => name.startsWith('desktop-')).map((name) => resolve(workflowsPath, name))
+    const workflowFiles = readdirSync(workflowsPath).filter((name) => name.endsWith('.yml')).map((name) => resolve(workflowsPath, name))
 
     for (const workflowFile of workflowFiles) {
       expect(linkedTargets, `workflow is not linked from the guide: ${workflowFile}`).toContain(workflowFile)
@@ -119,7 +119,7 @@ describe('validation guide structure', () => {
   })
 
   test('derives protected-main required checks and manual exclusions from CI', () => {
-    const ciJobs = workflowJobs(resolve('../.github/workflows/desktop-ci.yml'))
+    const ciJobs = workflowJobs(resolve('ci/workflows/ci.yml'))
     const protectedSection = section(validation, 'Recommended `main` branch protection target')
     const requiredChecks = [...protectedSection.matchAll(/^- `([^`]+)`$/gm)].map((match) => match[1])
     const exclusion = protectedSection.match(/^Do not require (.+?):/m)

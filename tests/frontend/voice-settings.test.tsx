@@ -76,14 +76,14 @@ describe('Voice settings setup flow', () => {
   it('shows only the selected provider model picker and switches to curated Groq models', async () => {
     await render(<Harness voice={voiceBridge()} />)
 
-    const service = container.querySelector<HTMLSelectElement>('select[aria-label="Dictation service"]')!
-    const model = container.querySelector<HTMLSelectElement>('select[aria-label="Dictation model"]')!
+    const service = container.querySelector<HTMLSelectElement>('select[aria-label="听写服务"]')!
+    const model = container.querySelector<HTMLSelectElement>('select[aria-label="听写模型"]')!
     expect(service.value).toBe('openai-live')
     expect([...model.options].map((option) => option.value)).toEqual(['gpt-live-transcribe', 'gpt-realtime-whisper'])
     expect(container.querySelector('input[aria-label="whisper-cli executable"]')).toBeNull()
 
     await choose(service, 'groq')
-    const groqModel = container.querySelector<HTMLSelectElement>('select[aria-label="Dictation model"]')!
+    const groqModel = container.querySelector<HTMLSelectElement>('select[aria-label="听写模型"]')!
     expect([...groqModel.options].map((option) => option.value)).toEqual(['whisper-large-v3-turbo', 'whisper-large-v3'])
     expect(container.textContent).not.toContain('OpenAI file model')
   })
@@ -97,13 +97,13 @@ describe('Voice settings setup flow', () => {
     await render(<Harness voice={voiceBridge({ saveApiKey })} />)
 
     const openAiCard = [...container.querySelectorAll<HTMLElement>('.voice-connection-card')].find((card) => card.textContent?.includes('OpenAI'))!
-    const addKey = [...openAiCard.querySelectorAll('button')].find((button) => button.textContent?.includes('Add key'))!
+    const addKey = [...openAiCard.querySelectorAll('button')].find((button) => button.textContent?.includes('添加密钥'))!
     expect(addKey.disabled).toBe(false)
     await click(addKey)
     const dialog = container.querySelector<HTMLElement>('[role="dialog"]')!
     const input = dialog.querySelector<HTMLInputElement>('input[type="password"]')!
     await enter(input, 'sk-test-key')
-    const save = [...dialog.querySelectorAll('button')].find((button) => button.textContent?.includes('Use API key'))!
+    const save = [...dialog.querySelectorAll('button')].find((button) => button.textContent?.includes('使用 API 密钥'))!
     await click(save)
 
     expect(saveApiKey).toHaveBeenCalledWith('openai', 'sk-test-key')
@@ -113,8 +113,8 @@ describe('Voice settings setup flow', () => {
     await render(<Harness voice={voiceBridge()} />)
 
     const realtime = container.querySelector<HTMLElement>('[aria-labelledby="voice-realtime-title"]')!
-    expect(realtime.textContent).toContain('OpenAI keys stay in memory while Kim is running.')
-    expect(realtime.textContent).toContain('Enter them again after restarting.')
+    expect(realtime.textContent).toContain('OpenAI 密钥只在 Kim 运行期间保存在内存里')
+    expect(realtime.textContent).toContain('重启后需要重新输入')
     expect(container.textContent).not.toContain('keychain')
     expect(container.textContent).not.toContain('GNOME Keyring')
   })
@@ -135,34 +135,34 @@ describe('Voice settings setup flow', () => {
       saveApiKey,
     })} />)
 
-    expect(container.textContent).toContain('Voice keys are session-only')
+    expect(container.textContent).toContain('语音密钥只在本次运行有效')
     expect(container.textContent).toContain('Enter them again after restarting Kim')
     expect(container.textContent).not.toContain('Storage locked')
     const openAiCard = [...container.querySelectorAll<HTMLElement>('.voice-connection-card')].find((card) => card.textContent?.includes('OpenAI'))!
-    const addKey = [...openAiCard.querySelectorAll('button')].find((button) => button.textContent?.includes('Add key'))!
+    const addKey = [...openAiCard.querySelectorAll('button')].find((button) => button.textContent?.includes('添加密钥'))!
     expect(addKey.disabled).toBe(false)
     await click(addKey)
 
     const dialog = container.querySelector<HTMLElement>('[role="dialog"]')!
-    expect(dialog.textContent).toContain('in desktop memory for this app session')
-    expect(dialog.textContent).toContain('Enter it again after restarting Kim')
+    expect(dialog.textContent).toContain('只在本次运行期间把它保存在内存里')
+    expect(dialog.textContent).toContain('重启后需要重新输入')
     const input = dialog.querySelector<HTMLInputElement>('input[type="password"]')!
     await enter(input, 'sk-session-key')
-    const save = [...dialog.querySelectorAll('button')].find((button) => button.textContent?.includes('Use API key'))!
+    const save = [...dialog.querySelectorAll('button')].find((button) => button.textContent?.includes('使用 API 密钥'))!
     await click(save)
 
     expect(saveApiKey).toHaveBeenCalledWith('openai', 'sk-session-key')
     expect(container.querySelector('[role="dialog"]')).toBeNull()
-    expect(openAiCard.textContent).toContain('Session only')
-    expect(container.textContent).toContain('Voice keys are session-only')
+    expect(openAiCard.textContent).toContain('仅本次运行')
+    expect(container.textContent).toContain('语音密钥只在本次运行有效')
   })
 
-  it('explains how to recover an older desktop process instead of showing disabled key buttons', async () => {
+  it('explains how to recover an 旧桌面进程 instead of showing disabled key buttons', async () => {
     await render(<Harness voice={null} />)
 
-    expect(container.textContent).toContain('Restart Kim to finish enabling Voice')
+    expect(container.textContent).toContain('重启 Kim 以完成语音功能的启用')
     expect(container.textContent).toContain('⌘Q')
-    expect([...container.querySelectorAll('button')].some((button) => button.disabled && button.textContent?.includes('Add key'))).toBe(false)
+    expect([...container.querySelectorAll('button')].some((button) => button.disabled && button.textContent?.includes('添加密钥'))).toBe(false)
   })
 
   it('connects and tests a self-hosted Parakeet or Whisper endpoint with an optional token', async () => {
@@ -174,38 +174,38 @@ describe('Voice settings setup flow', () => {
     } satisfies VoiceCredentialStatus)
     await render(<Harness voice={voiceBridge({ testSelfHosted, saveApiKey })} />)
 
-    const service = container.querySelector<HTMLSelectElement>('select[aria-label="Dictation service"]')!
+    const service = container.querySelector<HTMLSelectElement>('select[aria-label="听写服务"]')!
     await choose(service, 'self-hosted')
-    expect(container.textContent).toContain('Connect your transcription server')
-    expect(container.textContent).toContain('Parakeet, Whisper')
+    expect(container.textContent).toContain('连接你的转写服务')
+    expect(container.textContent).toContain('Parakeet、Whisper')
     expect(container.querySelector('input[aria-label="whisper-cli executable"]')).toBeNull()
     expect(container.textContent).not.toContain('API key required')
 
-    const url = container.querySelector<HTMLInputElement>('input[aria-label="Self-hosted server URL"]')!
-    const model = container.querySelector<HTMLInputElement>('input[aria-label="Self-hosted model ID"]')!
+    const url = container.querySelector<HTMLInputElement>('input[aria-label="自建服务地址"]')!
+    const model = container.querySelector<HTMLInputElement>('input[aria-label="自建模型 ID"]')!
     await enter(url, 'http://127.0.0.1:9000')
     await enter(model, 'nvidia/parakeet-tdt-0.6b-v3')
 
-    const addToken = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('Add token'))!
+    const addToken = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('添加令牌'))!
     await click(addToken)
     const dialog = container.querySelector<HTMLElement>('[role="dialog"]')!
-    expect(dialog.textContent).toContain('optional bearer token')
+    expect(dialog.textContent).toContain('可选的访问令牌')
     await enter(dialog.querySelector<HTMLInputElement>('input[type="password"]')!, 'local-token')
-    await click([...dialog.querySelectorAll('button')].find((button) => button.textContent?.includes('Use token'))!)
+    await click([...dialog.querySelectorAll('button')].find((button) => button.textContent?.includes('使用令牌'))!)
     expect(saveApiKey).toHaveBeenCalledWith('self-hosted', 'local-token')
 
     await click([...container.querySelectorAll('button')].find((button) => button.textContent?.includes('Connect & test'))!)
     expect(testSelfHosted).toHaveBeenCalledWith({ url: 'http://127.0.0.1:9000', model: 'nvidia/parakeet-tdt-0.6b-v3' })
-    expect(container.textContent).toContain('Connected. Kim successfully transcribed a test audio clip.')
+    expect(container.textContent).toContain('已连接，Kim 成功转写了一段测试音频。')
   })
 
   it('turns a missing Voice IPC handler into a restart state instead of checking forever', async () => {
     const credentialStatus = vi.fn().mockRejectedValue(new Error("No handler registered for 'voice:credential-status'"))
     await render(<Harness voice={voiceBridge({ credentialStatus })} />)
 
-    expect(container.textContent).toContain('Restart Kim to finish enabling Voice')
-    expect(container.textContent).toContain('Restart required')
-    expect(container.textContent).not.toContain('Checking…')
-    expect([...container.querySelectorAll('button')].some((button) => button.textContent?.includes('Add key'))).toBe(false)
+    expect(container.textContent).toContain('重启 Kim 以完成语音功能的启用')
+    expect(container.textContent).toContain('需要重启')
+    expect(container.textContent).not.toContain('正在检查…')
+    expect([...container.querySelectorAll('button')].some((button) => button.textContent?.includes('添加密钥'))).toBe(false)
   })
 })

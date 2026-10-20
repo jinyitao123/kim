@@ -65,7 +65,7 @@ async function openPicker(): Promise<HTMLInputElement> {
   await act(async () => {
     container.querySelector<HTMLButtonElement>('.model-picker__trigger')?.click()
   })
-  return container.querySelector<HTMLInputElement>('input[aria-label="Search models"]')!
+  return container.querySelector<HTMLInputElement>('input[aria-label="搜索模型"]')!
 }
 
 function optionLabels(): string[] {
@@ -104,7 +104,7 @@ describe('ModelPicker', () => {
     })
 
     expect(optionLabels()).toEqual(['Claude Opus 4.8', 'Claude Sonnet 4.7'])
-    expect(container.querySelector('.model-picker__group-heading')?.textContent).toContain('Not connected')
+    expect(container.querySelector('.model-picker__group-heading')?.textContent).toContain('未连接')
   })
 
   it('filters to a provider whose id collides with the unfiltered sentinel', async () => {
@@ -128,7 +128,7 @@ describe('ModelPicker', () => {
 
     expect(optionLabels()).toEqual(['Local Large'])
     const chips = [...container.querySelectorAll<HTMLButtonElement>('.model-picker__providers button')]
-    expect(chips.find((chip) => chip.textContent === 'All')?.getAttribute('aria-pressed')).toBe('false')
+    expect(chips.find((chip) => chip.textContent === '全部')?.getAttribute('aria-pressed')).toBe('false')
     expect(chips.find((chip) => chip.textContent === 'All Hands')?.getAttribute('aria-pressed')).toBe('true')
   })
 

@@ -567,7 +567,7 @@ describe('Composer fallback indicator', () => {
       isFallback: true,
     })
 
-    expect(container.querySelector<HTMLButtonElement>('.model-picker__trigger')?.getAttribute('aria-label')).toBe('Model: Vision')
+    expect(container.querySelector<HTMLButtonElement>('.model-picker__trigger')?.getAttribute('aria-label')).toBe('模型：Vision')
     expect(container.querySelector('.model-fallback-chip')?.textContent).toContain('Running on anthropic/claude-sonnet')
     expect(container.querySelector('.model-fallback-chip')?.getAttribute('title')).toContain('Provider fallback')
   })
